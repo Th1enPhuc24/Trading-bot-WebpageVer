@@ -1,0 +1,361 @@
+"""
+Backtesting System
+Tests neural network performance on historical data before live trading
+"""
+
+import numpy as np
+import pandas as pd
+from typing import Dict, List, Tuple, Optional
+from datetime import datetime, timedelta
+
+from .neural_network import NeuralNetwork
+from .data_processor import DataProcessor
+from .signal_generator import SignalGenerator
+from ..utils.multi_timeframe import MultiTimeframeAnalyzer
+from .risk_manager import RiskManager
+from .trading_filters import TradingFilters
+
+
+class BacktestEngine:
+    """
+    Backtest engine for testing trading strategy on historical data
+    """
+    
+    def __init__(self, config: dict):
+        self.config = config
+        self.data_processor = DataProcessor(window_size=config['network']['input_size'])
+        self.signal_generator = SignalGenerator(config)
+        self.risk_manager = RiskManager(config)
+        self.trading_filters = TradingFilters(config)
+        
+        # Backtest results
+        self.trades = []
+        self.equity_curve = []
+        self.signals_history = []
+        
+    def run_backtest(
+        self, 
+        network: NeuralNetwork,
+        prices: np.ndarray,
+        symbol: str,
+        initial_balance: float = 10000.0,
+        verbose: bool = True
+    ) -> Dict:
+        """
+        Run backtest on historical data
+        
+        Args:
+            network: Trained neural network
+            prices: Historical price data
+            symbol: Trading symbol
+            initial_balance: Starting account balance
+            verbose: Print progress
+            
+        Returns:
+            Dictionary with backtest results
+        """
+        if verbose:
+            print(f"\n{'='*70}")
+            print(f"🧪 BACKTESTING ON HISTORICAL DATA")
+            print(f"{'='*70}")
+            print(f"Symbol: {symbol}")
+            print(f"Data points: {len(prices)}")
+            print(f"Initial balance: ${initial_balance:,.2f}")
+            print(f"{'='*70}\n")
+        
+        balance = initial_balance
+        position = None
+        trades = []
+        equity_curve = [initial_balance]
+        signals_history = []
+        
+        input_size = self.config['network']['input_size']
+        max_hold_bars = self.config['risk_management']['max_hold_hours']
+        
+        # Start backtesting from bar 'input_size' onwards
+        for i in range(input_size, len(prices)):
+            current_price = prices[i]
+            
+            # Get input window
+            window = prices[i-input_size:i]
+            normalized = self.data_processor.normalize_prices(window, symbol)
+            
+            # Check if we have open position
+            if position is not None:
+                # Check stop loss
+                if current_price <= position['stop_loss']:
+                    # Stop loss hit
+                    pnl = position['stop_loss'] - position['entry_price']
+                    if position['type'] == 'SELL':
+                        pnl = -pnl
+                    pnl = pnl * position['lot_size']
+                    
+                    balance += pnl
+                    
+                    trade = {
+                        'entry_time': position['entry_bar'],
+                        'exit_time': i,
+                        'type': position['type'],
+                        'entry_price': position['entry_price'],
+                        'exit_price': position['stop_loss'],
+                        'pnl': pnl,
+                        'reason': 'STOP_LOSS',
+                        'hold_bars': i - position['entry_bar']
+                    }
+                    trades.append(trade)
+                    position = None
+                
+                # Check take profit
+                elif current_price >= position['take_profit']:
+                    # Take profit hit
+                    pnl = position['take_profit'] - position['entry_price']
+                    if position['type'] == 'SELL':
+                        pnl = -pnl
+                    pnl = pnl * position['lot_size']
+                    
+                    balance += pnl
+                    
+                    trade = {
+                        'entry_time': position['entry_bar'],
+                        'exit_time': i,
+                        'type': position['type'],
+                        'entry_price': position['entry_price'],
+                        'exit_price': position['take_profit'],
+                        'pnl': pnl,
+                        'reason': 'TAKE_PROFIT',
+                        'hold_bars': i - position['entry_bar']
+                    }
+                    trades.append(trade)
+                    position = None
+                
+                # Check timeout
+                elif i - position['entry_bar'] >= max_hold_bars:
+                    # Timeout - close at market
+                    pnl = current_price - position['entry_price']
+                    if position['type'] == 'SELL':
+                        pnl = -pnl
+                    pnl = pnl * position['lot_size']
+                    
+                    balance += pnl
+                    
+                    trade = {
+                        'entry_time': position['entry_bar'],
+                        'exit_time': i,
+                        'type': position['type'],
+                        'entry_price': position['entry_price'],
+                        'exit_price': current_price,
+                        'pnl': pnl,
+                        'reason': 'TIMEOUT',
+                        'hold_bars': i - position['entry_bar']
+                    }
+                    trades.append(trade)
+                    position = None
+            
+            # If no position, check for new signal
+            if position is None:
+                signal = self.signal_generator.generate_signal(
+                    network, normalized, symbol, current_price
+                )
+                
+                signals_history.append({
+                    'bar': i,
+                    'price': current_price,
+                    'signal': signal['signal'],
+                    'output': signal.get('output', signal.get('nn_output', 0.0))
+                })
+                
+                # Open new position if signal
+                if signal['signal'] in ['BUY', 'SELL']:
+                    # Calculate SL/TP first
+                    sl_tp = self.risk_manager.calculate_sl_tp_prices(
+                        symbol, signal['signal'], current_price
+                    )
+                    
+                    # Calculate position size with SL
+                    lot_size = self.risk_manager.calculate_lot_size(
+                        symbol, balance, current_price, sl_tp['stop_loss']
+                    )
+                    
+                    position = {
+                        'type': signal['signal'],
+                        'entry_bar': i,
+                        'entry_price': current_price,
+                        'stop_loss': sl_tp['stop_loss'],
+                        'take_profit': sl_tp['take_profit'],
+                        'lot_size': lot_size
+                    }
+            
+            # Record equity
+            current_equity = balance
+            if position is not None:
+                # Calculate unrealized P&L
+                unrealized_pnl = current_price - position['entry_price']
+                if position['type'] == 'SELL':
+                    unrealized_pnl = -unrealized_pnl
+                unrealized_pnl *= position['lot_size']
+                current_equity += unrealized_pnl
+            
+            equity_curve.append(current_equity)
+        
+        # Close any remaining position
+        if position is not None:
+            current_price = prices[-1]
+            pnl = current_price - position['entry_price']
+            if position['type'] == 'SELL':
+                pnl = -pnl
+            pnl = pnl * position['lot_size']
+            
+            balance += pnl
+            
+            trade = {
+                'entry_time': position['entry_bar'],
+                'exit_time': len(prices) - 1,
+                'type': position['type'],
+                'entry_price': position['entry_price'],
+                'exit_price': current_price,
+                'pnl': pnl,
+                'reason': 'END_OF_DATA',
+                'hold_bars': len(prices) - 1 - position['entry_bar']
+            }
+            trades.append(trade)
+        
+        # Calculate statistics
+        stats = self._calculate_statistics(
+            trades, equity_curve, initial_balance, balance
+        )
+        
+        if verbose:
+            self._print_results(stats, trades)
+        
+        # Store results
+        self.trades = trades
+        self.equity_curve = equity_curve
+        self.signals_history = signals_history
+        
+        return stats
+    
+    def _calculate_statistics(
+        self, 
+        trades: List[Dict],
+        equity_curve: List[float],
+        initial_balance: float,
+        final_balance: float
+    ) -> Dict:
+        """Calculate backtest statistics"""
+        
+        if len(trades) == 0:
+            return {
+                'total_trades': 0,
+                'winning_trades': 0,
+                'losing_trades': 0,
+                'win_rate': 0.0,
+                'total_pnl': 0.0,
+                'avg_win': 0.0,
+                'avg_loss': 0.0,
+                'profit_factor': 0.0,
+                'max_drawdown': 0.0,
+                'max_drawdown_pct': 0.0,
+                'sharpe_ratio': 0.0,
+                'final_balance': final_balance,
+                'return_pct': 0.0
+            }
+        
+        winning_trades = [t for t in trades if t['pnl'] > 0]
+        losing_trades = [t for t in trades if t['pnl'] <= 0]
+        
+        total_pnl = sum(t['pnl'] for t in trades)
+        total_wins = sum(t['pnl'] for t in winning_trades)
+        total_losses = abs(sum(t['pnl'] for t in losing_trades))
+        
+        # Win rate
+        win_rate = len(winning_trades) / len(trades) * 100 if trades else 0
+        
+        # Average win/loss
+        avg_win = total_wins / len(winning_trades) if winning_trades else 0
+        avg_loss = total_losses / len(losing_trades) if losing_trades else 0
+        
+        # Profit factor
+        profit_factor = total_wins / total_losses if total_losses > 0 else 0
+        
+        # Max drawdown
+        peak = equity_curve[0]
+        max_dd = 0
+        for equity in equity_curve:
+            if equity > peak:
+                peak = equity
+            dd = peak - equity
+            if dd > max_dd:
+                max_dd = dd
+        
+        max_dd_pct = (max_dd / initial_balance * 100) if initial_balance > 0 else 0
+        
+        # Sharpe ratio (simplified)
+        returns = np.diff(equity_curve) / equity_curve[:-1]
+        sharpe = (np.mean(returns) / np.std(returns) * np.sqrt(252)) if len(returns) > 0 and np.std(returns) > 0 else 0
+        
+        return {
+            'total_trades': len(trades),
+            'winning_trades': len(winning_trades),
+            'losing_trades': len(losing_trades),
+            'win_rate': win_rate,
+            'total_pnl': total_pnl,
+            'avg_win': avg_win,
+            'avg_loss': avg_loss,
+            'profit_factor': profit_factor,
+            'max_drawdown': max_dd,
+            'max_drawdown_pct': max_dd_pct,
+            'sharpe_ratio': sharpe,
+            'final_balance': final_balance,
+            'return_pct': (final_balance - initial_balance) / initial_balance * 100
+        }
+    
+    def _print_results(self, stats: Dict, trades: List[Dict]):
+        """Print backtest results"""
+        print(f"\n{'='*70}")
+        print(f"📊 BACKTEST RESULTS")
+        print(f"{'='*70}")
+        print(f"Total Trades:      {stats['total_trades']}")
+        print(f"Winning Trades:    {stats['winning_trades']} ({stats['win_rate']:.2f}%)")
+        print(f"Losing Trades:     {stats['losing_trades']}")
+        print(f"")
+        print(f"Total P&L:         ${stats['total_pnl']:,.2f}")
+        print(f"Average Win:       ${stats['avg_win']:,.2f}")
+        print(f"Average Loss:      ${stats['avg_loss']:,.2f}")
+        print(f"Profit Factor:     {stats['profit_factor']:.2f}")
+        print(f"")
+        print(f"Max Drawdown:      ${stats['max_drawdown']:,.2f} ({stats['max_drawdown_pct']:.2f}%)")
+        print(f"Sharpe Ratio:      {stats['sharpe_ratio']:.2f}")
+        print(f"")
+        print(f"Initial Balance:   ${stats['final_balance'] - stats['total_pnl']:,.2f}")
+        print(f"Final Balance:     ${stats['final_balance']:,.2f}")
+        print(f"Return:            {stats['return_pct']:,.2f}%")
+        print(f"{'='*70}")
+        
+        # Print recent trades
+        if trades:
+            print(f"\n📝 Last 10 Trades:")
+            print(f"{'Type':<6} {'Entry':<10} {'Exit':<10} {'P&L':<12} {'Reason':<12}")
+            print(f"{'-'*60}")
+            
+            for trade in trades[-10:]:
+                pnl_str = f"${trade['pnl']:>10,.2f}"
+                print(f"{trade['type']:<6} "
+                      f"${trade['entry_price']:<9.2f} "
+                      f"${trade['exit_price']:<9.2f} "
+                      f"{pnl_str:<12} "
+                      f"{trade['reason']:<12}")
+        
+        print()
+    
+    def get_trades_dataframe(self) -> pd.DataFrame:
+        """Convert trades to pandas DataFrame"""
+        if not self.trades:
+            return pd.DataFrame()
+        return pd.DataFrame(self.trades)
+    
+    def get_equity_dataframe(self) -> pd.DataFrame:
+        """Convert equity curve to pandas DataFrame"""
+        return pd.DataFrame({
+            'bar': range(len(self.equity_curve)),
+            'equity': self.equity_curve
+        })
