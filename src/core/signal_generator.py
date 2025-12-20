@@ -50,6 +50,9 @@ class SignalGenerator:
         output = network.predict(normalized_input)
         output_value = float(output[0, 0])  # Extract scalar value
         
+        # Clip output to [-1, 1] for SVM compatibility (SVR output is unbounded unlike tanh)
+        output_value = np.clip(output_value, -1.0, 1.0)
+        
         # Determine signal based on threshold
         signal_type = None
         if output_value > self.signal_threshold:

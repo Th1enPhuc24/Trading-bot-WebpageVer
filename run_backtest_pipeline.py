@@ -34,7 +34,7 @@ def main():
     print(f"Pipeline steps:")
     print(f"  1. ✓ Fetch historical data")
     print(f"  2. ✓ Split into train/test (70%/30%)")
-    print(f"  3. ✓ Train neural network on training set")
+    print(f"  3. ✓ Train SVM model on training set")
     print(f"  4. ✓ Backtest on test set")
     print(f"  5. ✓ Display results in dashboard")
     print(f"  6. ✓ Ask user before going live")
@@ -57,16 +57,19 @@ def main():
         
         fetcher = TradingViewDataFetcher(config)
         
+        # Get timeframe from config (default to M5 for scalping)
+        timeframe = config['trading'].get('primary_timeframe', '5')
+        
         # Fetch maximum available data
-        print(f"Fetching maximum available bars...")
-        prices = fetcher.get_closing_prices('60', n_bars=5000)
+        print(f"Fetching maximum available bars (timeframe: M{timeframe})...")
+        prices = fetcher.get_closing_prices(timeframe, n_bars=5000)
         
         if prices is None or len(prices) < 1000:
             print(f"❌ Insufficient data. Need at least 1000 bars.")
             return
         
         print(f"✓ Fetched {len(prices)} bars")
-        print(f"  Date range: ~{len(prices)/24:.0f} days")
+        print(f"  Date range: ~{len(prices)*int(timeframe)/60/24:.0f} days")
         print(f"  Price range: ${prices.min():.2f} - ${prices.max():.2f}")
         
         # ============================================================
@@ -92,17 +95,19 @@ def main():
         # STEP 3: Train Model
         # ============================================================
         print(f"\n{'='*70}")
-        print(f"🧠 STEP 3: TRAINING NEURAL NETWORK")
+        print(f"🧠 STEP 3: TRAINING SVM MODEL")
         print(f"{'='*70}")
         
         # Adjust training_bars to available data
         max_training_bars = len(train_prices) - config['network']['input_size']
         training_bars = min(config['training']['training_bars'], max_training_bars)
         
+        svm_config = config.get('svm', {})
         print(f"Training configuration:")
         print(f"  Training bars: {training_bars}")
-        print(f"  Epochs: {config['training']['epochs']}")
-        print(f"  Learning rate: {config['training']['learning_rate']}")
+        print(f"  Kernel: {svm_config.get('kernel', 'rbf')}")
+        print(f"  C: {svm_config.get('C', 10.0)}")
+        print(f"  Gamma: {svm_config.get('gamma', 'scale')}")
         
         # Initialize and train
         trainer = TrainingSystem(config)
@@ -112,8 +117,8 @@ def main():
         config['training']['training_bars'] = training_bars
         
         network = NeuralNetwork(
+            config=config,
             input_size=config['network']['input_size'],
-            hidden_size=config['network']['hidden_size'],
             output_size=config['network']['output_size']
         )
         
@@ -125,9 +130,18 @@ def main():
         training_time = time.time() - start_time
         
         print(f"\n✓ Training completed in {training_time:.2f} seconds")
-        print(f"  Initial loss: {stats['initial_loss']:.6f}")
-        print(f"  Final loss: {stats['final_loss']:.6f}")
-        print(f"  Loss reduction: {stats['loss_reduction']:.6f}")
+        print(f"  MSE Loss: {stats.get('mse_loss', stats.get('final_loss', 0)):.6f}")
+        
+        # Save training dataset
+        from src.core.data_processor import DataProcessor
+        processor = DataProcessor(window_size=config['network']['input_size'])
+        X_train, y_train = processor.create_training_dataset(train_prices, symbol, training_bars=training_bars)
+        processor.save_training_dataset(X_train, y_train, symbol)
+        
+        # Save normalized sample data
+        sample_window = train_prices[-112:]
+        normalized_sample = processor.normalize_prices(sample_window, symbol)
+        processor.save_normalized_data(sample_window, normalized_sample, symbol)
         
         # Restore config
         config['training']['training_bars'] = original_training_bars
@@ -204,10 +218,18 @@ def main():
                 'exit_reason': trade['reason']
             })
         
-        # Add training loss
-        if 'loss_history' in stats:
-            for epoch, loss in enumerate(stats['loss_history']):
-                if epoch % 10 == 0:  # Every 10 epochs
+        # Add training loss / trade PnL history
+        # SVM has only 1 loss value, so we use cumulative trade PnL instead
+        if len(backtest.trades) > 0:
+            cumulative_pnl = 0
+            for i, trade in enumerate(backtest.trades):
+                cumulative_pnl += trade['pnl']
+                # Add as "training gain/loss" - showing cumulative PnL over trades
+                dashboard.add_training_loss(i + 1, cumulative_pnl)
+        else:
+            # Fallback: show SVM MSE loss as single point
+            if 'loss_history' in stats:
+                for epoch, loss in enumerate(stats['loss_history']):
                     dashboard.add_training_loss(epoch, loss)
         
         # Update metrics
@@ -237,6 +259,9 @@ def main():
         # Show dashboard
         print(f"✓ Dashboard created with backtest results")
         
+        # IMPORTANT: Update dashboard to render data BEFORE saving
+        dashboard.update()
+        
         # Save dashboard image with timestamp to outputs folder
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         image_filename = f"outputs/backtests/backtest_results_{timestamp}.png"
@@ -246,7 +271,6 @@ def main():
         print(f"\nDisplaying dashboard...")
         print(f"Close the dashboard window to continue...\n")
         
-        dashboard.update()
         plt.show()
         
         # ============================================================

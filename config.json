@@ -1,34 +1,37 @@
 {
+  "svm": {
+    "kernel": "rbf",
+    "C": 10.0,
+    "gamma": "auto",
+    "epsilon": 0.1,
+    "window_size": 3000
+  },
   "network": {
     "input_size": 112,
-    "hidden_size": 7,
-    "output_size": 1,
-    "activation": "tanh"
+    "output_size": 1
   },
   "training": {
-    "train_after_bars": 100,
-    "training_bars": 3500,
-    "epochs": 500,
-    "learning_rate": 0.01,
-    "batch_size": 32,
-    "validation_split": 0.2,
-    "early_stopping_patience": 50,
-    "min_bars_required": 3500
+    "train_after_bars": 200,
+    "training_bars": 3000
   },
   "signal": {
-    "threshold": 0.002
+    "threshold": 0.7
   },
   "risk_management": {
-    "risk_percentage": 0.002,
-    "stop_loss_points": 100,
-    "take_profit_points": 150,
-    "max_hold_hours": 4,
-    "typical_hold_hours": 1
+    "risk_percentage": 0.001,
+    "stop_loss_points": 5,
+    "take_profit_points": 10,
+    "max_hold_hours": 1,
+    "typical_hold_hours": 0.25
   },
   "trading": {
     "exchange": "COMEX",
     "symbol": "GC1!",
-    "timeframes": ["1D", "60", "5"],
+    "timeframes": [
+      "60",
+      "5"
+    ],
+    "primary_timeframe": "5",
     "one_position_per_symbol": true
   },
   "symbols": [
@@ -41,5 +44,10 @@
       "end": "17:00",
       "timezone": "America/New_York"
     }
+  },
+  "scalping": {
+    "enabled": true,
+    "check_interval_minutes": 1,
+    "max_trades_per_hour": 10
   }
 }

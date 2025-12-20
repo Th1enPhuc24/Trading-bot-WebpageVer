@@ -1,6 +1,6 @@
 """
 Backtesting System
-Tests neural network performance on historical data before live trading
+Tests SVM model performance on historical data before live trading
 """
 
 import numpy as np
@@ -43,16 +43,6 @@ class BacktestEngine:
     ) -> Dict:
         """
         Run backtest on historical data
-        
-        Args:
-            network: Trained neural network
-            prices: Historical price data
-            symbol: Trading symbol
-            initial_balance: Starting account balance
-            verbose: Print progress
-            
-        Returns:
-            Dictionary with backtest results
         """
         if verbose:
             print(f"\n{'='*70}")
@@ -61,6 +51,7 @@ class BacktestEngine:
             print(f"Symbol: {symbol}")
             print(f"Data points: {len(prices)}")
             print(f"Initial balance: ${initial_balance:,.2f}")
+            print(f"Signal threshold: {self.config['signal']['threshold']}")
             print(f"{'='*70}\n")
         
         balance = initial_balance
@@ -71,81 +62,79 @@ class BacktestEngine:
         
         input_size = self.config['network']['input_size']
         max_hold_bars = self.config['risk_management']['max_hold_hours']
+        threshold = self.config['signal']['threshold']
         
-        # Start backtesting from bar 'input_size' onwards
-        for i in range(input_size, len(prices)):
+        # Start backtesting - need extra bars for indicators
+        start_bar = input_size + 50
+        
+        for i in range(start_bar, len(prices)):
             current_price = prices[i]
             
-            # Get input window
-            window = prices[i-input_size:i]
-            normalized = self.data_processor.normalize_prices(window, symbol)
+            # Get all prices up to current point and create proper input
+            price_history = prices[:i+1]
+            normalized = self.data_processor.prepare_prediction_input(price_history, symbol)
+            
+            if normalized is None:
+                continue
             
             # Check if we have open position
             if position is not None:
-                # Check stop loss
-                if current_price <= position['stop_loss']:
-                    # Stop loss hit
-                    pnl = position['stop_loss'] - position['entry_price']
-                    if position['type'] == 'SELL':
-                        pnl = -pnl
-                    pnl = pnl * position['lot_size']
-                    
-                    balance += pnl
-                    
-                    trade = {
-                        'entry_time': position['entry_bar'],
-                        'exit_time': i,
-                        'type': position['type'],
-                        'entry_price': position['entry_price'],
-                        'exit_price': position['stop_loss'],
-                        'pnl': pnl,
-                        'reason': 'STOP_LOSS',
-                        'hold_bars': i - position['entry_bar']
-                    }
-                    trades.append(trade)
-                    position = None
+                pos_type = position['type']
+                entry_price = position['entry_price']
+                stop_loss = position['stop_loss']
+                take_profit = position['take_profit']
+                lot_size = position['lot_size']
                 
-                # Check take profit
-                elif current_price >= position['take_profit']:
-                    # Take profit hit
-                    pnl = position['take_profit'] - position['entry_price']
-                    if position['type'] == 'SELL':
-                        pnl = -pnl
-                    pnl = pnl * position['lot_size']
-                    
-                    balance += pnl
-                    
-                    trade = {
-                        'entry_time': position['entry_bar'],
-                        'exit_time': i,
-                        'type': position['type'],
-                        'entry_price': position['entry_price'],
-                        'exit_price': position['take_profit'],
-                        'pnl': pnl,
-                        'reason': 'TAKE_PROFIT',
-                        'hold_bars': i - position['entry_bar']
-                    }
-                    trades.append(trade)
-                    position = None
+                should_close = False
+                close_price = current_price
+                close_reason = None
+                
+                if pos_type == 'BUY':
+                    # BUY position: SL is below entry, TP is above entry
+                    if current_price <= stop_loss:
+                        should_close = True
+                        close_price = stop_loss
+                        close_reason = 'STOP_LOSS'
+                    elif current_price >= take_profit:
+                        should_close = True
+                        close_price = take_profit
+                        close_reason = 'TAKE_PROFIT'
+                else:  # SELL
+                    # SELL position: SL is above entry, TP is below entry
+                    if current_price >= stop_loss:
+                        should_close = True
+                        close_price = stop_loss
+                        close_reason = 'STOP_LOSS'
+                    elif current_price <= take_profit:
+                        should_close = True
+                        close_price = take_profit
+                        close_reason = 'TAKE_PROFIT'
                 
                 # Check timeout
-                elif i - position['entry_bar'] >= max_hold_bars:
-                    # Timeout - close at market
-                    pnl = current_price - position['entry_price']
-                    if position['type'] == 'SELL':
-                        pnl = -pnl
-                    pnl = pnl * position['lot_size']
+                if not should_close and (i - position['entry_bar'] >= max_hold_bars):
+                    should_close = True
+                    close_price = current_price
+                    close_reason = 'TIMEOUT'
+                
+                if should_close:
+                    # Calculate P&L
+                    if pos_type == 'BUY':
+                        pnl = (close_price - entry_price) * lot_size
+                    else:  # SELL
+                        pnl = (entry_price - close_price) * lot_size
                     
                     balance += pnl
                     
                     trade = {
                         'entry_time': position['entry_bar'],
                         'exit_time': i,
-                        'type': position['type'],
-                        'entry_price': position['entry_price'],
-                        'exit_price': current_price,
+                        'entry_bar': position['entry_bar'],
+                        'exit_bar': i,
+                        'type': pos_type,
+                        'entry_price': entry_price,
+                        'exit_price': close_price,
                         'pnl': pnl,
-                        'reason': 'TIMEOUT',
+                        'reason': close_reason,
                         'hold_bars': i - position['entry_bar']
                     }
                     trades.append(trade)
@@ -153,31 +142,43 @@ class BacktestEngine:
             
             # If no position, check for new signal
             if position is None:
-                signal = self.signal_generator.generate_signal(
-                    network, normalized, symbol, current_price
-                )
+                # Get prediction
+                output = network.predict(normalized)
+                output_value = float(output[0, 0])
+                
+                # Clip output
+                output_value = np.clip(output_value, -1.0, 1.0)
+                
+                # Determine signal
+                if output_value > threshold:
+                    signal_type = 'BUY'
+                elif output_value < -threshold:
+                    signal_type = 'SELL'
+                else:
+                    signal_type = 'HOLD'
                 
                 signals_history.append({
                     'bar': i,
+                    'bar_idx': i,
                     'price': current_price,
-                    'signal': signal['signal'],
-                    'output': signal.get('output', signal.get('nn_output', 0.0))
+                    'signal': signal_type,
+                    'output': output_value
                 })
                 
                 # Open new position if signal
-                if signal['signal'] in ['BUY', 'SELL']:
-                    # Calculate SL/TP first
+                if signal_type in ['BUY', 'SELL']:
+                    # Calculate SL/TP
                     sl_tp = self.risk_manager.calculate_sl_tp_prices(
-                        symbol, signal['signal'], current_price
+                        symbol, signal_type, current_price
                     )
                     
-                    # Calculate position size with SL
+                    # Calculate position size
                     lot_size = self.risk_manager.calculate_lot_size(
                         symbol, balance, current_price, sl_tp['stop_loss']
                     )
                     
                     position = {
-                        'type': signal['signal'],
+                        'type': signal_type,
                         'entry_bar': i,
                         'entry_price': current_price,
                         'stop_loss': sl_tp['stop_loss'],
@@ -189,10 +190,10 @@ class BacktestEngine:
             current_equity = balance
             if position is not None:
                 # Calculate unrealized P&L
-                unrealized_pnl = current_price - position['entry_price']
-                if position['type'] == 'SELL':
-                    unrealized_pnl = -unrealized_pnl
-                unrealized_pnl *= position['lot_size']
+                if position['type'] == 'BUY':
+                    unrealized_pnl = (current_price - position['entry_price']) * position['lot_size']
+                else:
+                    unrealized_pnl = (position['entry_price'] - current_price) * position['lot_size']
                 current_equity += unrealized_pnl
             
             equity_curve.append(current_equity)
@@ -200,16 +201,18 @@ class BacktestEngine:
         # Close any remaining position
         if position is not None:
             current_price = prices[-1]
-            pnl = current_price - position['entry_price']
-            if position['type'] == 'SELL':
-                pnl = -pnl
-            pnl = pnl * position['lot_size']
+            if position['type'] == 'BUY':
+                pnl = (current_price - position['entry_price']) * position['lot_size']
+            else:
+                pnl = (position['entry_price'] - current_price) * position['lot_size']
             
             balance += pnl
             
             trade = {
                 'entry_time': position['entry_bar'],
                 'exit_time': len(prices) - 1,
+                'entry_bar': position['entry_bar'],
+                'exit_bar': len(prices) - 1,
                 'type': position['type'],
                 'entry_price': position['entry_price'],
                 'exit_price': current_price,
@@ -290,8 +293,11 @@ class BacktestEngine:
         max_dd_pct = (max_dd / initial_balance * 100) if initial_balance > 0 else 0
         
         # Sharpe ratio (simplified)
-        returns = np.diff(equity_curve) / equity_curve[:-1]
-        sharpe = (np.mean(returns) / np.std(returns) * np.sqrt(252)) if len(returns) > 0 and np.std(returns) > 0 else 0
+        if len(equity_curve) > 1:
+            returns = np.diff(equity_curve) / np.array(equity_curve[:-1])
+            sharpe = (np.mean(returns) / np.std(returns) * np.sqrt(252)) if np.std(returns) > 0 else 0
+        else:
+            sharpe = 0
         
         return {
             'total_trades': len(trades),

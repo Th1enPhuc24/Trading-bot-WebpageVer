@@ -42,12 +42,11 @@ class TradingBot:
             self.config = json.load(f)
         
         print(f"{'='*60}")
-        print(f"Neural Network Trading Bot - Initializing")
+        print(f"SVM Trading Bot - Initializing")
         print(f"{'='*60}")
         print(f"Symbol: {self.config['trading']['exchange']}:{self.config['trading']['symbol']}")
-        print(f"Network: {self.config['network']['input_size']} → "
-              f"{self.config['network']['hidden_size']} → "
-              f"{self.config['network']['output_size']}")
+        svm_config = self.config.get('svm', {})
+        print(f"Model: SVM with kernel={svm_config.get('kernel', 'rbf')}, C={svm_config.get('C', 10.0)}")
         print(f"Training: Every {self.config['training']['train_after_bars']} H1 bars")
         print(f"Risk: {self.config['risk_management']['risk_percentage']*100}% per trade")
         print(f"{'='*60}\n")
@@ -69,8 +68,8 @@ class TradingBot:
         self.use_dashboard = use_dashboard
         self.dashboard = TradingDashboard(max_bars=200) if use_dashboard else None
         
-        # Initialize neural network
-        print("Initializing neural network...")
+        # Initialize SVM model
+        print("Initializing SVM model...")
         self.network = None
         self.last_bar_count = 0
         
@@ -402,24 +401,36 @@ class TradingBot:
             if self.iteration_count % 12 == 0 and self.iteration_count > 0:
                 self._save_live_dashboard("periodic")
     
-    def run(self, check_interval_minutes: int = 60):
+    def run(self, check_interval_minutes: int = None):
         """
         Run the trading bot with hybrid checking strategy:
         - Check TP/SL every 1 minute when position is open (near real-time)
-        - Check H1 signals every 60 minutes for new trades
+        - Check signals every N minutes for new trades (from config)
         
         Args:
-            check_interval_minutes: How often to check for new H1 signals (default 60)
+            check_interval_minutes: How often to check signals (default from config or 60)
         """
         if not self.initialize():
             print("❌ Initialization failed")
             return
         
+        # Get check interval from config (scalping uses shorter interval)
+        if check_interval_minutes is None:
+            scalping_config = self.config.get('scalping', {})
+            if scalping_config.get('enabled', False):
+                check_interval_minutes = scalping_config.get('check_interval_minutes', 5)
+                timeframe_name = 'M5 Scalping'
+            else:
+                check_interval_minutes = 60  # Default H1
+                timeframe_name = 'H1 Swing'
+        else:
+            timeframe_name = f'M{check_interval_minutes}'
+        
         self.is_running = True
         print(f"\n🚀 Trading bot started")
-        print(f"📊 Strategy:")
+        print(f"📊 Strategy: {timeframe_name}")
         print(f"  - TP/SL check: Every 1 minute (when position open)")
-        print(f"  - H1 signal check: Every {check_interval_minutes} minutes")
+        print(f"  - Signal check: Every {check_interval_minutes} minutes")
         print(f"Press Ctrl+C to stop\n")
         
         # Show dashboard if enabled
@@ -458,22 +469,24 @@ class TradingBot:
                 
                 else:
                     # NO POSITION: Check less frequently
-                    time_since_h1_check = (current_time - last_h1_check).total_seconds() / 60
+                    time_since_check = (current_time - last_h1_check).total_seconds() / 60
                     
-                    if time_since_h1_check >= check_interval_minutes:
-                        # Time for H1 signal check
+                    if time_since_check >= check_interval_minutes:
+                        # Time for signal check
                         self.iteration_count += 1
                         self.run_iteration()
                         last_h1_check = current_time
                         
-                        # Save periodic dashboard
-                        if self.iteration_count % 12 == 0 and self.iteration_count > 0:
+                        # Save periodic dashboard (every 60 iterations for scalping)
+                        save_interval = 60 if check_interval_minutes <= 5 else 12
+                        if self.iteration_count % save_interval == 0 and self.iteration_count > 0:
                             self._save_live_dashboard("periodic")
                     
-                    # Wait shorter time to check again
-                    wait_time = min(60, (check_interval_minutes * 60) - (time_since_h1_check * 60))
-                    print(f"\n⏸️ No position - next H1 check in {int((check_interval_minutes * 60 - time_since_h1_check * 60) / 60)} min...")
-                    time.sleep(max(60, wait_time))  # At least 1 minute
+                    # Calculate wait time
+                    remaining_seconds = max(0, (check_interval_minutes * 60) - (time_since_check * 60))
+                    remaining_minutes = remaining_seconds / 60
+                    print(f"\n⏸️ No position - next signal check in {remaining_minutes:.1f} min...")
+                    time.sleep(max(check_interval_minutes * 60 // 10, 30))  # Check periodically
         
         except KeyboardInterrupt:
             print("\n\n⏹️ Stopping bot...")

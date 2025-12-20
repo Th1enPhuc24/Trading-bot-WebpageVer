@@ -90,11 +90,11 @@ class TradingDashboard:
         self.axes['equity'].set_xlabel('Step', fontsize=10)
         self.axes['equity'].grid(True, alpha=0.3, linestyle='--')
         
-        # 3. Training Gain/Loss History (bottom center)
+        # 3. Cumulative Trade P&L (bottom center) - was Training Gain/Loss History
         self.axes['training'] = self.fig.add_subplot(gs[1, 1])
-        self.axes['training'].set_title('Training Gain/Loss History', fontsize=12, pad=10)
-        self.axes['training'].set_ylabel('Loss', fontsize=10)
-        self.axes['training'].set_xlabel('Episode', fontsize=10)
+        self.axes['training'].set_title('Cumulative Trade P&L', fontsize=12, pad=10)
+        self.axes['training'].set_ylabel('P&L ($)', fontsize=10)
+        self.axes['training'].set_xlabel('Trade #', fontsize=10)
         self.axes['training'].grid(True, alpha=0.3, linestyle='--')
         
         # 4. Trading Statistics (bottom right)
@@ -229,9 +229,9 @@ class TradingDashboard:
         self.axes['equity'].set_xlabel('Step', fontsize=10)
         self.axes['equity'].grid(True, alpha=0.3, linestyle='--')
         
-        self.axes['training'].set_title('Training Gain/Loss History', fontsize=12, pad=10)
-        self.axes['training'].set_ylabel('Loss', fontsize=10)
-        self.axes['training'].set_xlabel('Episode', fontsize=10)
+        self.axes['training'].set_title('Cumulative Trade P&L', fontsize=12, pad=10)
+        self.axes['training'].set_ylabel('P&L ($)', fontsize=10)
+        self.axes['training'].set_xlabel('Trade #', fontsize=10)
         self.axes['training'].grid(True, alpha=0.3, linestyle='--')
         
         self.axes['stats'].axis('off')
@@ -323,7 +323,7 @@ class TradingDashboard:
     def _plot_training_loss(self):
         """Plot training loss history (gain/loss)"""
         if len(self.training_losses) == 0:
-            self.axes['training'].text(0.5, 0.5, 'No training data yet', 
+            self.axes['training'].text(0.5, 0.5, 'No trades yet', 
                                       ha='center', va='center', fontsize=10)
             return
         

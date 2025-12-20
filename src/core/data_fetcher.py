@@ -92,6 +92,9 @@ class TradingViewDataFetcher:
             
             print(f"✓ Fetched {len(df)} bars ({df.index[0]} to {df.index[-1]})")
             
+            # Save raw data to file
+            self._save_raw_data(df, timeframe)
+            
             # Cache the data
             cache_key = f"{self.symbol}_{timeframe}"
             self.data_cache[cache_key] = {
@@ -104,6 +107,23 @@ class TradingViewDataFetcher:
         except Exception as e:
             print(f"❌ Error fetching data: {e}")
             return None
+    
+    def _save_raw_data(self, df: pd.DataFrame, timeframe: str):
+        """Save raw crawled data to CSV file with timestamp"""
+        import os
+        
+        # Create outputs/data directory if not exists
+        data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'outputs', 'data')
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # Generate filename with timestamp
+        timestamp_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"raw_data_{self.symbol}_{timeframe}_{timestamp_str}.csv"
+        filepath = os.path.join(data_dir, filename)
+        
+        # Save to CSV
+        df.to_csv(filepath)
+        print(f"💾 Raw data saved to: {filepath}")
     
     def get_closing_prices(self, timeframe: str = '60', n_bars: int = 500) -> Optional[np.ndarray]:
         """

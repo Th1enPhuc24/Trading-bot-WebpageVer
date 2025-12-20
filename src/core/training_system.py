@@ -1,6 +1,7 @@
 """
-Training System with Exact Specifications
-Handles retraining every 20 H1 bars with 340 bars, 270 epochs, learning rate 0.0155
+Training System for SVM Model
+Handles training and retraining of SVM model
+Updated: Removed epochs loop, SVM uses batch learning
 """
 
 import numpy as np
@@ -13,20 +14,16 @@ from .data_processor import DataProcessor
 
 class TrainingSystem:
     """
-    Manages neural network training and retraining
-    - Retrains every 20 new H1 bars (TrainAfterBars=20)
-    - Uses 340 most recent bars for training (TrainingBars=340)
-    - Runs 270 epochs per training session (Epochs=270)
-    - Fixed learning rate 0.0155
-    - Binary target: (Close[i-1] > Close[i]) ? +1 : -1
+    Manages SVM model training and retraining
+    - Retrains every N new bars (TrainAfterBars from config)
+    - Uses sliding window of most recent bars for training
+    - SVM trains in one pass (no epochs)
     """
     
     def __init__(self, config: dict):
         self.config = config
         self.train_after_bars = config['training']['train_after_bars']
         self.training_bars = config['training']['training_bars']
-        self.epochs = config['training']['epochs']
-        self.learning_rate = config['training']['learning_rate']
         
         # Track bars since last training per symbol
         self.bars_since_training = {}
@@ -49,7 +46,7 @@ class TrainingSystem:
             new_bars_count: Number of new bars since last check
         
         Returns:
-            True if should retrain (every 20 bars), False otherwise
+            True if should retrain (every train_after_bars), False otherwise
         """
         if symbol not in self.bars_since_training:
             self.bars_since_training[symbol] = 0
@@ -64,10 +61,10 @@ class TrainingSystem:
     def train_network(self, network: NeuralNetwork, prices: np.ndarray, 
                      symbol: str, verbose: bool = True) -> Dict:
         """
-        Train network with exact specifications
+        Train SVM model on historical data
         
         Args:
-            network: Neural network instance
+            network: SVM model instance (NeuralNetwork wrapper)
             prices: Historical closing prices (must have >= training_bars)
             symbol: Trading symbol
             verbose: Print training progress
@@ -78,28 +75,25 @@ class TrainingSystem:
         if len(prices) < self.training_bars:
             raise ValueError(f"Insufficient data for training: need {self.training_bars}, got {len(prices)}")
         
-        # Create training dataset using 340 most recent bars
+        # Create training dataset using sliding window
         X, y = self.data_processor.create_training_dataset(
             prices, symbol, self.training_bars
         )
         
         if verbose:
             print(f"\n{'='*60}")
-            print(f"Training {symbol} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"Training SVM for {symbol} - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             print(f"Training samples: {len(X)}")
-            print(f"Epochs: {self.epochs}, Learning rate: {self.learning_rate}")
+            print(f"Features per sample: {X.shape[1]}")
             print(f"{'='*60}")
         
-        # Train network: 270 epochs, learning rate 0.0155
-        losses = network.train(
-            X, y, 
-            epochs=self.epochs,
-            learning_rate=self.learning_rate,
-            verbose=verbose
-        )
+        # Train SVM model (single pass, no epochs)
+        start_time = datetime.now()
+        losses = network.train(X, y, verbose=verbose)
+        training_time = (datetime.now() - start_time).total_seconds()
         
-        # Save updated weights
-        weights_path = os.path.join(self.weights_dir, f"weights_{symbol}.bin")
+        # Save updated model
+        weights_path = os.path.join(self.weights_dir, f"weights_{symbol}.joblib")
         network.save_weights(weights_path, symbol)
         
         # Update tracking
@@ -113,58 +107,58 @@ class TrainingSystem:
         training_stats = {
             'timestamp': datetime.now(),
             'training_bars': self.training_bars,
-            'epochs': self.epochs,
-            'learning_rate': self.learning_rate,
-            'initial_loss': losses[0],
-            'final_loss': losses[-1],
-            'loss_reduction': losses[0] - losses[-1],
+            'training_samples': len(X),
+            'training_time_seconds': training_time,
+            'mse_loss': losses[0],
+            'initial_loss': losses[0],  # For compatibility with NN interface
+            'final_loss': losses[0],    # Same as initial for SVM (single pass)
+            'loss_reduction': 0.0,       # No reduction for SVM
             'loss_history': losses
         }
         
         self.training_history[symbol].append(training_stats)
         
         if verbose:
-            print(f"Training completed!")
-            print(f"Initial loss: {losses[0]:.6f}")
-            print(f"Final loss: {losses[-1]:.6f}")
-            print(f"Loss reduction: {losses[0] - losses[-1]:.6f}")
-            print(f"Weights saved to: {weights_path}")
+            print(f"Training completed in {training_time:.2f} seconds!")
+            print(f"MSE Loss: {losses[0]:.6f}")
+            print(f"Model saved to: {weights_path}")
             print(f"{'='*60}\n")
         
         return training_stats
     
     def initialize_network(self, symbol: str, prices: Optional[np.ndarray] = None) -> NeuralNetwork:
         """
-        Initialize neural network with pre-trained weights or train from scratch
+        Initialize SVM model with pre-trained weights or train from scratch
         
         Args:
             symbol: Trading symbol
             prices: Historical prices for training if no pre-trained weights exist
         
         Returns:
-            Initialized neural network
+            Initialized SVM model
         """
+        # Create SVM model with config
         network = NeuralNetwork(
+            config=self.config,
             input_size=self.config['network']['input_size'],
-            hidden_size=self.config['network']['hidden_size'],
             output_size=self.config['network']['output_size']
         )
         
         # Try to load pre-trained weights
-        weights_path = os.path.join(self.weights_dir, f"weights_{symbol}.bin")
+        weights_path = os.path.join(self.weights_dir, f"weights_{symbol}.joblib")
         
         if network.load_weights(weights_path):
-            print(f"Loaded pre-trained weights for {symbol}")
+            print(f"Loaded pre-trained SVM model for {symbol}")
             self.bars_since_training[symbol] = 0
         else:
-            print(f"No pre-trained weights found for {symbol}")
+            print(f"No pre-trained model found for {symbol}")
             
             # If prices provided, train from scratch
             if prices is not None and len(prices) >= self.training_bars:
-                print(f"Training {symbol} from scratch...")
+                print(f"Training SVM for {symbol} from scratch...")
                 self.train_network(network, prices, symbol, verbose=True)
             else:
-                print(f"Starting with random weights for {symbol}")
+                print(f"Starting with untrained SVM model for {symbol}")
                 self.bars_since_training[symbol] = 0
         
         return network
@@ -175,7 +169,7 @@ class TrainingSystem:
         Check if retraining is needed and execute if so
         
         Args:
-            network: Neural network instance
+            network: SVM model instance
             prices: Current historical prices
             symbol: Trading symbol
             new_bars: Number of new bars since last check
