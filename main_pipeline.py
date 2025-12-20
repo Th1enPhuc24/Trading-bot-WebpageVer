@@ -30,7 +30,7 @@ class TradingPipeline:
     def __init__(self, config_path: str = "config.json"):
         """Initialize pipeline with configuration"""
         print("="*70)
-        print("🚀 NEURAL NETWORK TRADING BOT - COMPLETE PIPELINE")
+        print(" NEURAL NETWORK TRADING BOT - COMPLETE PIPELINE")
         print("="*70)
         print()
         
@@ -60,7 +60,7 @@ class TradingPipeline:
         self.test_data = None
         self.backtest_results = None
         
-        print(f"✓ Configuration loaded")
+        print(f" Configuration loaded")
         print(f"  Symbol: {self.symbol}")
         print(f"  Timeframe: {self.timeframe}")
         print(f"  Training epochs: {self.config['training']['epochs']}")
@@ -69,7 +69,7 @@ class TradingPipeline:
     def step1_collect_data(self, num_bars: int = 5000):
         """Step 1: Thu thập dữ liệu từ TradingView"""
         print("="*70)
-        print("📊 STEP 1: DATA COLLECTION")
+        print(" STEP 1: DATA COLLECTION")
         print("="*70)
         
         print(f"Fetching {num_bars} bars of {self.symbol}...")
@@ -79,11 +79,11 @@ class TradingPipeline:
         )
         
         if df is None or len(df) == 0:
-            print("❌ Failed to fetch data")
+            print(" Failed to fetch data")
             return False
         
         self.raw_data = df
-        print(f"✓ Collected {len(df)} bars")
+        print(f" Collected {len(df)} bars")
         print(f"  Date range: {df.index[0]} to {df.index[-1]}")
         print(f"  Price range: ${df['close'].min():.2f} - ${df['close'].max():.2f}")
         print()
@@ -93,11 +93,11 @@ class TradingPipeline:
     def step2_process_data(self, train_split: float = 0.7):
         """Step 2: Xử lý và chuẩn hóa dữ liệu, chia train/test"""
         print("="*70)
-        print("🔧 STEP 2: DATA PROCESSING & NORMALIZATION")
+        print(" STEP 2: DATA PROCESSING & NORMALIZATION")
         print("="*70)
         
         if self.raw_data is None:
-            print("❌ No data to process. Run step1_collect_data first.")
+            print(" No data to process. Run step1_collect_data first.")
             return False
         
         # Extract prices
@@ -108,7 +108,7 @@ class TradingPipeline:
         self.train_data = prices[:split_idx]
         self.test_data = prices[split_idx:]
         
-        print(f"✓ Data processed and normalized")
+        print(f" Data processed and normalized")
         print(f"  Total bars: {len(prices)}")
         print(f"  Training set: {len(self.train_data)} bars ({train_split*100:.0f}%)")
         print(f"  Test set: {len(self.test_data)} bars ({(1-train_split)*100:.0f}%)")
@@ -123,7 +123,7 @@ class TradingPipeline:
         print("="*70)
         
         if self.train_data is None:
-            print("❌ No training data. Run step2_process_data first.")
+            print(" No training data. Run step2_process_data first.")
             return False
         
         print(f"Training on {len(self.train_data)} bars...")
@@ -139,10 +139,10 @@ class TradingPipeline:
         )
         
         if history is None:
-            print("❌ Training failed")
+            print(" Training failed")
             return False
         
-        print(f"✓ Training completed successfully")
+        print(f" Training completed successfully")
         print(f"  Initial loss: {history['initial_loss']:.6f}")
         print(f"  Final loss: {history['final_loss']:.6f}")
         print(f"  Loss reduction: {history['loss_reduction']:.6f}")
@@ -158,7 +158,7 @@ class TradingPipeline:
         print("="*70)
         
         if self.test_data is None:
-            print("❌ No test data. Run step2_process_data first.")
+            print(" No test data. Run step2_process_data first.")
             return False
         
         print(f"Running backtest on {len(self.test_data)} bars...")
@@ -175,10 +175,10 @@ class TradingPipeline:
         )
         
         if self.backtest_results is None:
-            print("❌ Backtest failed")
+            print(" Backtest failed")
             return False
         
-        print(f"✓ Backtest completed")
+        print(f" Backtest completed")
         print()
         
         return True
@@ -186,11 +186,11 @@ class TradingPipeline:
     def step5_generate_dashboard(self):
         """Step 5: Tạo và xuất dashboard với kết quả test"""
         print("="*70)
-        print("📈 STEP 5: DASHBOARD GENERATION")
+        print(" STEP 5: DASHBOARD GENERATION")
         print("="*70)
         
         if self.backtest_results is None:
-            print("❌ No backtest results. Run step4_test_model first.")
+            print(" No backtest results. Run step4_test_model first.")
             return False
         
         print("Creating dashboard visualization...")
@@ -257,7 +257,7 @@ class TradingPipeline:
         output_path = f"outputs/backtests/backtest_{self.symbol}_{timestamp_str}.png"
         dashboard.save_figure(output_path)
         
-        print(f"✓ Dashboard generated and saved")
+        print(f" Dashboard generated and saved")
         print(f"  Output: {output_path}")
         print()
         
@@ -271,16 +271,16 @@ class TradingPipeline:
     def step6_evaluate_results(self):
         """Step 6: Đánh giá kết quả và quyết định live trading"""
         print("="*70)
-        print("🎯 STEP 6: RESULTS EVALUATION")
+        print(" STEP 6: RESULTS EVALUATION")
         print("="*70)
         
         if self.backtest_results is None:
-            print("❌ No results to evaluate. Run step4_test_model first.")
+            print(" No results to evaluate. Run step4_test_model first.")
             return False
         
         stats = self.backtest_results
         
-        print("\n📊 BACKTEST SUMMARY:")
+        print("\n BACKTEST SUMMARY:")
         print(f"  Win Rate: {stats['win_rate']:.2f}%")
         print(f"  Total Return: {stats['return_pct']:.2f}%")
         print(f"  Profit Factor: {stats['profit_factor']:.2f}")
@@ -294,21 +294,21 @@ class TradingPipeline:
         good_profit_factor = stats['profit_factor'] >= 1.5
         acceptable_drawdown = stats['max_drawdown_pct'] <= 20
         
-        print("🔍 PERFORMANCE EVALUATION:")
-        print(f"  {'✓' if is_profitable else '✗'} Profitable: {stats['return_pct']:.2f}%")
-        print(f"  {'✓' if good_winrate else '✗'} Win Rate: {stats['win_rate']:.2f}%")
-        print(f"  {'✓' if good_profit_factor else '✗'} Profit Factor: {stats['profit_factor']:.2f}")
-        print(f"  {'✓' if acceptable_drawdown else '✗'} Max Drawdown: {stats['max_drawdown_pct']:.2f}%")
+        print(" PERFORMANCE EVALUATION:")
+        print(f"  {'' if is_profitable else ''} Profitable: {stats['return_pct']:.2f}%")
+        print(f"  {'' if good_winrate else ''} Win Rate: {stats['win_rate']:.2f}%")
+        print(f"  {'' if good_profit_factor else ''} Profit Factor: {stats['profit_factor']:.2f}")
+        print(f"  {'' if acceptable_drawdown else ''} Max Drawdown: {stats['max_drawdown_pct']:.2f}%")
         print()
         
         all_good = is_profitable and good_winrate and good_profit_factor and acceptable_drawdown
         
         if all_good:
-            print("✅ Model performance looks GOOD!")
-            print("💡 Recommendation: RECOMMENDED for live trading")
+            print(" Model performance looks GOOD!")
+            print(" Recommendation: RECOMMENDED for live trading")
         else:
-            print("⚠️ Model performance needs improvement")
-            print("💡 Recommendation: Adjust parameters or retrain before going live")
+            print("️ Model performance needs improvement")
+            print(" Recommendation: Adjust parameters or retrain before going live")
         
         print()
         return all_good
@@ -316,16 +316,16 @@ class TradingPipeline:
     def step7_start_live_trading(self):
         """Step 7: Bắt đầu live trading"""
         print("="*70)
-        print("🚀 STEP 7: LIVE TRADING")
+        print(" STEP 7: LIVE TRADING")
         print("="*70)
         print()
         
-        response = input("🚀 Do you want to proceed with LIVE TRADING? (yes/no): ").strip().lower()
+        response = input(" Do you want to proceed with LIVE TRADING? (yes/no): ").strip().lower()
         
         if response not in ['yes', 'y']:
             print()
             print("="*70)
-            print("⏹️ LIVE TRADING CANCELLED")
+            print("️ LIVE TRADING CANCELLED")
             print("="*70)
             print()
             print("Model has been trained and tested.")
@@ -339,7 +339,7 @@ class TradingPipeline:
         
         print()
         print("="*70)
-        print("🎯 STARTING LIVE TRADING")
+        print(" STARTING LIVE TRADING")
         print("="*70)
         print()
         
@@ -359,7 +359,7 @@ class TradingPipeline:
         if bot.initialize():
             bot.run(check_interval_minutes=60)
         else:
-            print("❌ Failed to initialize live trading bot")
+            print(" Failed to initialize live trading bot")
             return False
         
         return True
@@ -397,11 +397,11 @@ class TradingPipeline:
             return True
             
         except KeyboardInterrupt:
-            print("\n\n⏹️ Pipeline interrupted by user")
+            print("\n\n️ Pipeline interrupted by user")
             return False
         
         except Exception as e:
-            print(f"\n❌ Pipeline error: {e}")
+            print(f"\n Pipeline error: {e}")
             import traceback
             traceback.print_exc()
             return False
@@ -414,9 +414,9 @@ def main():
     success = pipeline.run_complete_pipeline()
     
     if success:
-        print("\n✅ Pipeline completed successfully!")
+        print("\n Pipeline completed successfully!")
     else:
-        print("\n❌ Pipeline completed with errors")
+        print("\n Pipeline completed with errors")
     
     return 0 if success else 1
 

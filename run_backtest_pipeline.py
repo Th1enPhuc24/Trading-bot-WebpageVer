@@ -29,15 +29,15 @@ import matplotlib.pyplot as plt
 
 def main():
     print(f"\n{'='*70}")
-    print(f"🚀 COMPLETE TRADING BOT PIPELINE")
+    print(f" COMPLETE TRADING BOT PIPELINE")
     print(f"{'='*70}")
     print(f"Pipeline steps:")
-    print(f"  1. ✓ Fetch historical data")
-    print(f"  2. ✓ Split into train/test (70%/30%)")
-    print(f"  3. ✓ Train SVM model on training set")
-    print(f"  4. ✓ Backtest on test set")
-    print(f"  5. ✓ Display results in dashboard")
-    print(f"  6. ✓ Ask user before going live")
+    print(f"  1.  Fetch historical data")
+    print(f"  2.  Split into train/test (70%/30%)")
+    print(f"  3.  Train SVM model on training set")
+    print(f"  4.  Backtest on test set")
+    print(f"  5.  Display results in dashboard")
+    print(f"  6.  Ask user before going live")
     print(f"{'='*70}\n")
     
     # Load config
@@ -52,7 +52,7 @@ def main():
         # STEP 1: Fetch Historical Data
         # ============================================================
         print(f"\n{'='*70}")
-        print(f"📊 STEP 1: FETCHING HISTORICAL DATA")
+        print(f" STEP 1: FETCHING HISTORICAL DATA")
         print(f"{'='*70}")
         
         fetcher = TradingViewDataFetcher(config)
@@ -65,10 +65,10 @@ def main():
         prices = fetcher.get_closing_prices(timeframe, n_bars=5000)
         
         if prices is None or len(prices) < 1000:
-            print(f"❌ Insufficient data. Need at least 1000 bars.")
+            print(f" Insufficient data. Need at least 1000 bars.")
             return
         
-        print(f"✓ Fetched {len(prices)} bars")
+        print(f" Fetched {len(prices)} bars")
         print(f"  Date range: ~{len(prices)*int(timeframe)/60/24:.0f} days")
         print(f"  Price range: ${prices.min():.2f} - ${prices.max():.2f}")
         
@@ -76,7 +76,7 @@ def main():
         # STEP 2: Split Data
         # ============================================================
         print(f"\n{'='*70}")
-        print(f"✂️ STEP 2: SPLITTING DATA")
+        print(f"️ STEP 2: SPLITTING DATA")
         print(f"{'='*70}")
         
         # Split 70% training, 30% testing
@@ -129,7 +129,7 @@ def main():
         
         training_time = time.time() - start_time
         
-        print(f"\n✓ Training completed in {training_time:.2f} seconds")
+        print(f"\n Training completed in {training_time:.2f} seconds")
         print(f"  MSE Loss: {stats.get('mse_loss', stats.get('final_loss', 0)):.6f}")
         
         # Save training dataset
@@ -170,7 +170,7 @@ def main():
         # STEP 5: Visualize Results
         # ============================================================
         print(f"\n{'='*70}")
-        print(f"📊 STEP 5: VISUALIZING RESULTS")
+        print(f" STEP 5: VISUALIZING RESULTS")
         print(f"{'='*70}")
         
         print(f"Creating dashboard with backtest results...")
@@ -257,7 +257,7 @@ def main():
         # )
         
         # Show dashboard
-        print(f"✓ Dashboard created with backtest results")
+        print(f" Dashboard created with backtest results")
         
         # IMPORTANT: Update dashboard to render data BEFORE saving
         dashboard.update()
@@ -266,7 +266,7 @@ def main():
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         image_filename = f"outputs/backtests/backtest_results_{timestamp}.png"
         dashboard.save_figure(image_filename)
-        print(f"✓ Dashboard saved to: {image_filename}")
+        print(f" Dashboard saved to: {image_filename}")
         
         print(f"\nDisplaying dashboard...")
         print(f"Close the dashboard window to continue...\n")
@@ -277,10 +277,10 @@ def main():
         # STEP 6: User Decision
         # ============================================================
         print(f"\n{'='*70}")
-        print(f"🎯 STEP 6: DECISION TIME")
+        print(f" STEP 6: DECISION TIME")
         print(f"{'='*70}")
         
-        print(f"\n📊 BACKTEST SUMMARY:")
+        print(f"\n BACKTEST SUMMARY:")
         print(f"  Win Rate: {backtest_stats['win_rate']:.2f}%")
         print(f"  Total Return: {backtest_stats['return_pct']:.2f}%")
         print(f"  Profit Factor: {backtest_stats['profit_factor']:.2f}")
@@ -288,39 +288,39 @@ def main():
         print(f"  Sharpe Ratio: {backtest_stats['sharpe_ratio']:.2f}")
         
         # Evaluate performance
-        print(f"\n🔍 PERFORMANCE EVALUATION:")
+        print(f"\n PERFORMANCE EVALUATION:")
         
         is_profitable = backtest_stats['return_pct'] > 0
         good_win_rate = backtest_stats['win_rate'] >= 50
         good_profit_factor = backtest_stats['profit_factor'] >= 1.5
         acceptable_dd = backtest_stats['max_drawdown_pct'] <= 20
         
-        print(f"  {'✓' if is_profitable else '✗'} Profitable: {backtest_stats['return_pct']:.2f}%")
-        print(f"  {'✓' if good_win_rate else '✗'} Win Rate: {backtest_stats['win_rate']:.2f}%")
-        print(f"  {'✓' if good_profit_factor else '✗'} Profit Factor: {backtest_stats['profit_factor']:.2f}")
-        print(f"  {'✓' if acceptable_dd else '✗'} Max Drawdown: {backtest_stats['max_drawdown_pct']:.2f}%")
+        print(f"  {'' if is_profitable else ''} Profitable: {backtest_stats['return_pct']:.2f}%")
+        print(f"  {'' if good_win_rate else ''} Win Rate: {backtest_stats['win_rate']:.2f}%")
+        print(f"  {'' if good_profit_factor else ''} Profit Factor: {backtest_stats['profit_factor']:.2f}")
+        print(f"  {'' if acceptable_dd else ''} Max Drawdown: {backtest_stats['max_drawdown_pct']:.2f}%")
         
         all_good = is_profitable and good_win_rate and good_profit_factor and acceptable_dd
         
         if all_good:
-            print(f"\n✅ Model performance looks GOOD!")
+            print(f"\n Model performance looks GOOD!")
             recommendation = "RECOMMENDED for live trading"
         elif is_profitable:
-            print(f"\n⚠️ Model performance is ACCEPTABLE but could be better")
+            print(f"\n️ Model performance is ACCEPTABLE but could be better")
             recommendation = "Consider live trading with caution"
         else:
-            print(f"\n❌ Model performance is POOR")
+            print(f"\n Model performance is POOR")
             recommendation = "NOT RECOMMENDED for live trading"
         
-        print(f"\n💡 Recommendation: {recommendation}")
+        print(f"\n Recommendation: {recommendation}")
         
         # Ask user
         print(f"\n{'='*70}")
-        response = input(f"\n🚀 Do you want to proceed with LIVE TRADING? (yes/no): ").strip().lower()
+        response = input(f"\n Do you want to proceed with LIVE TRADING? (yes/no): ").strip().lower()
         
         if response in ['yes', 'y']:
             print(f"\n{'='*70}")
-            print(f"🚀 STARTING LIVE TRADING")
+            print(f" STARTING LIVE TRADING")
             print(f"{'='*70}")
             print(f"\nLaunching bot with trained model...")
             print(f"Run: python run_with_dashboard.py")
@@ -329,7 +329,7 @@ def main():
             print(f"{'='*70}\n")
         else:
             print(f"\n{'='*70}")
-            print(f"⏹️ LIVE TRADING CANCELLED")
+            print(f"️ LIVE TRADING CANCELLED")
             print(f"{'='*70}")
             print(f"\nModel has been trained and saved.")
             print(f"You can:")
@@ -340,9 +340,9 @@ def main():
             print(f"{'='*70}\n")
         
     except KeyboardInterrupt:
-        print(f"\n\n⚠️ Pipeline interrupted by user")
+        print(f"\n\n️ Pipeline interrupted by user")
     except Exception as e:
-        print(f"\n\n❌ Error: {e}")
+        print(f"\n\n Error: {e}")
         import traceback
         traceback.print_exc()
 

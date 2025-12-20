@@ -302,7 +302,7 @@ class DataProcessor:
             f.write(f"# Window Size: {self.window_size}\n")
         
         df.to_csv(filepath, mode='a', index=True)
-        print(f"💾 Normalized data saved to: {filepath}")
+        print(f" Normalized data saved to: {filepath}")
     
     def save_training_dataset(self, X: np.ndarray, y: np.ndarray, symbol: str):
         """
@@ -330,6 +330,6 @@ class DataProcessor:
         np.savetxt(targets_file, y, delimiter=',',
                    header=f"Training Targets - Symbol: {symbol}, Timestamp: {datetime.now().isoformat()}, Shape: {y.shape}")
         
-        print(f"💾 Training features saved to: {features_file}")
-        print(f"💾 Training targets saved to: {targets_file}")
+        print(f" Training features saved to: {features_file}")
+        print(f" Training targets saved to: {targets_file}")
 

@@ -318,7 +318,7 @@ class BacktestEngine:
     def _print_results(self, stats: Dict, trades: List[Dict]):
         """Print backtest results"""
         print(f"\n{'='*70}")
-        print(f"📊 BACKTEST RESULTS")
+        print(f" BACKTEST RESULTS")
         print(f"{'='*70}")
         print(f"Total Trades:      {stats['total_trades']}")
         print(f"Winning Trades:    {stats['winning_trades']} ({stats['win_rate']:.2f}%)")
@@ -339,7 +339,7 @@ class BacktestEngine:
         
         # Print recent trades
         if trades:
-            print(f"\n📝 Last 10 Trades:")
+            print(f"\n Last 10 Trades:")
             print(f"{'Type':<6} {'Entry':<10} {'Exit':<10} {'P&L':<12} {'Reason':<12}")
             print(f"{'-'*60}")
             

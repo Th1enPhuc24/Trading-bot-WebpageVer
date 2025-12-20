@@ -26,7 +26,7 @@ def fetch_large_dataset(config, n_bars=10000):
         prices: Numpy array of closing prices
     """
     print(f"\n{'='*70}")
-    print(f"📊 FETCHING LARGE DATASET")
+    print(f" FETCHING LARGE DATASET")
     print(f"{'='*70}")
     print(f"Symbol: {config['trading']['symbol']}")
     print(f"Timeframe: H1 (Hourly)")
@@ -55,9 +55,9 @@ def fetch_large_dataset(config, n_bars=10000):
             if batch_prices is not None:
                 all_prices.append(batch_prices)
                 remaining -= len(batch_prices)
-                print(f"    ✓ Got {len(batch_prices)} bars")
+                print(f"     Got {len(batch_prices)} bars")
             else:
-                print(f"    ❌ Failed to fetch batch {batch_num}")
+                print(f"     Failed to fetch batch {batch_num}")
                 break
             
             batch_num += 1
@@ -70,13 +70,13 @@ def fetch_large_dataset(config, n_bars=10000):
             # Concatenate and remove duplicates
             prices = np.concatenate(all_prices)
             prices = np.unique(prices)
-            print(f"\n✓ Total fetched: {len(prices)} unique bars")
+            print(f"\n Total fetched: {len(prices)} unique bars")
         else:
             prices = None
     
     if prices is not None:
         print(f"\n{'='*70}")
-        print(f"✅ DATA FETCH SUCCESSFUL")
+        print(f" DATA FETCH SUCCESSFUL")
         print(f"{'='*70}")
         print(f"Total bars: {len(prices)}")
         print(f"Date range: ~{len(prices)/24:.0f} days")
@@ -86,7 +86,7 @@ def fetch_large_dataset(config, n_bars=10000):
         print(f"Latest price: ${prices[-1]:.2f}")
         print(f"{'='*70}\n")
     else:
-        print(f"\n❌ DATA FETCH FAILED\n")
+        print(f"\n DATA FETCH FAILED\n")
     
     return prices
 
@@ -131,7 +131,7 @@ def train_with_large_dataset(config, prices):
     training_time = time.time() - start_time
     
     print(f"\n{'='*70}")
-    print(f"✅ TRAINING COMPLETED")
+    print(f" TRAINING COMPLETED")
     print(f"{'='*70}")
     print(f"Training time: {training_time:.2f} seconds ({training_time/60:.2f} minutes)")
     print(f"Initial loss: {stats['initial_loss']:.6f}")
@@ -153,7 +153,7 @@ def test_predictions(network, prices, config):
         config: Configuration dictionary
     """
     print(f"\n{'='*70}")
-    print(f"🔮 TESTING PREDICTIONS")
+    print(f" TESTING PREDICTIONS")
     print(f"{'='*70}\n")
     
     processor = DataProcessor(window_size=config['network']['input_size'])
@@ -220,7 +220,7 @@ def test_predictions(network, prices, config):
 def main():
     """Main training script"""
     print(f"\n{'='*70}")
-    print(f"🚀 LARGE-SCALE NEURAL NETWORK TRAINING")
+    print(f" LARGE-SCALE NEURAL NETWORK TRAINING")
     print(f"{'='*70}")
     print(f"Training Gold Futures (COMEX:GC1!) with 10,000+ bars")
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -236,21 +236,21 @@ def main():
         prices = fetch_large_dataset(config, desired_bars)
         
         if prices is None:
-            print(f"❌ No data fetched. Cannot proceed with training.")
+            print(f" No data fetched. Cannot proceed with training.")
             return
         
         # Use maximum available data
         actual_bars = len(prices)
         training_bars = min(config['training']['training_bars'], actual_bars - config['network']['input_size'])
         
-        print(f"\n📊 DATA SUMMARY:")
+        print(f"\n DATA SUMMARY:")
         print(f"  Requested: {desired_bars} bars")
         print(f"  Received: {actual_bars} bars")
         print(f"  Will use: {training_bars} bars for training")
         print(f"  Training samples: {actual_bars - config['network']['input_size']}")
         
         if actual_bars < 1000:
-            print(f"\n⚠️ WARNING: Very limited data ({actual_bars} bars)")
+            print(f"\n️ WARNING: Very limited data ({actual_bars} bars)")
             print(f"Results may not be reliable. Recommended minimum: 1000 bars")
             response = input("\nContinue anyway? (y/n): ")
             if response.lower() != 'y':
@@ -267,7 +267,7 @@ def main():
         test_predictions(network, prices, config)
         
         print(f"\n{'='*70}")
-        print(f"✅ ALL STEPS COMPLETED SUCCESSFULLY")
+        print(f" ALL STEPS COMPLETED SUCCESSFULLY")
         print(f"{'='*70}")
         print(f"Completed: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"\nYou can now use the trained model for live trading:")
@@ -275,9 +275,9 @@ def main():
         print(f"{'='*70}\n")
         
     except KeyboardInterrupt:
-        print(f"\n\n⚠️ Training interrupted by user")
+        print(f"\n\n️ Training interrupted by user")
     except Exception as e:
-        print(f"\n\n❌ Error during training: {e}")
+        print(f"\n\n Error during training: {e}")
         import traceback
         traceback.print_exc()
 

@@ -179,11 +179,11 @@ class TrainingSystem:
         """
         if self.should_retrain(symbol, new_bars):
             if len(prices) >= self.training_bars:
-                print(f"\n🔄 Retraining triggered for {symbol} (after {self.train_after_bars} bars)")
+                print(f"\n Retraining triggered for {symbol} (after {self.train_after_bars} bars)")
                 self.train_network(network, prices, symbol, verbose=True)
                 return True
             else:
-                print(f"⚠️ Cannot retrain {symbol}: insufficient data ({len(prices)}/{self.training_bars})")
+                print(f"️ Cannot retrain {symbol}: insufficient data ({len(prices)}/{self.training_bars})")
                 return False
         
         return False

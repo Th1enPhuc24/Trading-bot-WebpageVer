@@ -69,7 +69,7 @@ class SignalGenerator:
             
             # Don't open new position if one exists
             if signal_type in ['BUY', 'SELL']:
-                print(f"⚠️ Position already exists for {symbol} ({existing_direction}), signal ignored")
+                print(f"️ Position already exists for {symbol} ({existing_direction}), signal ignored")
                 position_allowed = False
                 signal_type = 'HOLD'
         
@@ -105,9 +105,9 @@ class SignalGenerator:
         if signal_type == 'BUY':
             print(f"🟢 {timestamp} | {symbol} | BUY SIGNAL | Output: {output:+.6f} | Price: {price:.2f}")
         elif signal_type == 'SELL':
-            print(f"🔴 {timestamp} | {symbol} | SELL SIGNAL | Output: {output:+.6f} | Price: {price:.2f}")
+            print(f" {timestamp} | {symbol} | SELL SIGNAL | Output: {output:+.6f} | Price: {price:.2f}")
         else:
-            print(f"⚪ {timestamp} | {symbol} | HOLD | Output: {output:+.6f} | Price: {price:.2f}")
+            print(f" {timestamp} | {symbol} | HOLD | Output: {output:+.6f} | Price: {price:.2f}")
     
     def register_position(self, symbol: str, direction: str, entry_price: float, 
                          lot_size: float, stop_loss: float, take_profit: float):
@@ -123,7 +123,7 @@ class SignalGenerator:
             take_profit: Take profit price
         """
         if self.one_position_per_symbol and symbol in self.active_positions:
-            print(f"⚠️ Overwriting existing position for {symbol}")
+            print(f"️ Overwriting existing position for {symbol}")
         
         self.active_positions[symbol] = {
             'direction': direction,
@@ -134,7 +134,7 @@ class SignalGenerator:
             'take_profit': take_profit
         }
         
-        print(f"✓ Position registered: {symbol} {direction} @ {entry_price:.2f}")
+        print(f" Position registered: {symbol} {direction} @ {entry_price:.2f}")
     
     def close_position(self, symbol: str, exit_price: float, reason: str = 'manual'):
         """
@@ -149,7 +149,7 @@ class SignalGenerator:
             Dictionary with position result or None
         """
         if symbol not in self.active_positions:
-            print(f"⚠️ No active position found for {symbol}")
+            print(f"️ No active position found for {symbol}")
             return None
         
         position = self.active_positions[symbol]
@@ -183,7 +183,7 @@ class SignalGenerator:
         del self.active_positions[symbol]
         
         # Print result
-        pnl_emoji = "✅" if pnl_points > 0 else "❌"
+        pnl_emoji = "" if pnl_points > 0 else ""
         print(f"{pnl_emoji} Position closed: {symbol} {direction} | "
               f"Entry: {entry_price:.2f} → Exit: {exit_price:.2f} | "
               f"P&L: {pnl_points:+.2f} points | Reason: {reason}")

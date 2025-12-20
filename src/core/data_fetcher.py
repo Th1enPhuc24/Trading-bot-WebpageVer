@@ -26,10 +26,10 @@ class TradingViewDataFetcher:
             # Anonymous access - no login required
             # For authenticated access: TvDatafeed(username='your_username', password='your_password')
             self.tv = TvDatafeed()
-            print(f"✓ TradingView connection initialized (tvdatafeed-enhanced v2.2.1)")
+            print(f" TradingView connection initialized (tvdatafeed-enhanced v2.2.1)")
             print(f"  Using anonymous access - data may be limited")
         except Exception as e:
-            print(f"⚠️ TradingView connection failed: {e}")
+            print(f"️ TradingView connection failed: {e}")
             self.tv = None
         
         # Cache for storing data
@@ -63,7 +63,7 @@ class TradingViewDataFetcher:
             DataFrame with OHLCV data or None if failed
         """
         if self.tv is None:
-            print(f"⚠️ TradingView not initialized")
+            print(f"️ TradingView not initialized")
             return None
         
         try:
@@ -84,13 +84,13 @@ class TradingViewDataFetcher:
             )
             
             if df is None or len(df) == 0:
-                print(f"⚠️ No data received for {self.symbol}")
+                print(f"️ No data received for {self.symbol}")
                 return None
             
             # Ensure data is sorted by date
             df = df.sort_index()
             
-            print(f"✓ Fetched {len(df)} bars ({df.index[0]} to {df.index[-1]})")
+            print(f" Fetched {len(df)} bars ({df.index[0]} to {df.index[-1]})")
             
             # Save raw data to file
             self._save_raw_data(df, timeframe)
@@ -105,7 +105,7 @@ class TradingViewDataFetcher:
             return df
         
         except Exception as e:
-            print(f"❌ Error fetching data: {e}")
+            print(f" Error fetching data: {e}")
             return None
     
     def _save_raw_data(self, df: pd.DataFrame, timeframe: str):
@@ -123,7 +123,7 @@ class TradingViewDataFetcher:
         
         # Save to CSV
         df.to_csv(filepath)
-        print(f"💾 Raw data saved to: {filepath}")
+        print(f" Raw data saved to: {filepath}")
     
     def get_closing_prices(self, timeframe: str = '60', n_bars: int = 500) -> Optional[np.ndarray]:
         """
@@ -223,7 +223,7 @@ class TradingViewDataFetcher:
                     'timestamp': datetime.now()
                 }
                 
-                print(f"✓ Cache updated for {cache_key}: {len(combined)} bars")
+                print(f" Cache updated for {cache_key}: {len(combined)} bars")
         else:
             # No cache, fetch fresh data
             self.fetch_data(timeframe, n_bars)

@@ -10,7 +10,7 @@ from pathlib import Path
 models_path = Path("models/weights")
 if not models_path.exists() or not list(models_path.glob("*.bin")):
     print("="*70)
-    print("❌ ERROR: No trained model found!")
+    print(" ERROR: No trained model found!")
     print("="*70)
     print()
     print("You need to train a model first before running live trading.")
@@ -28,16 +28,16 @@ from trading_bot import TradingBot
 def main():
     """Main entry point for live trading"""
     print("="*70)
-    print("🚀 STARTING LIVE TRADING BOT")
+    print(" STARTING LIVE TRADING BOT")
     print("="*70)
     print()
-    print("⚠️  LIVE TRADING MODE - Using real market data")
+    print("️  LIVE TRADING MODE - Using real market data")
     print()
     
     response = input("Are you sure you want to start live trading? (yes/no): ").strip().lower()
     
     if response not in ['yes', 'y']:
-        print("\n⏹️ Live trading cancelled")
+        print("\n️ Live trading cancelled")
         return 0
     
     print()
@@ -50,7 +50,7 @@ def main():
     if bot.initialize():
         bot.run(check_interval_minutes=60)
     else:
-        print("❌ Failed to initialize trading bot")
+        print(" Failed to initialize trading bot")
         return 1
     
     return 0
