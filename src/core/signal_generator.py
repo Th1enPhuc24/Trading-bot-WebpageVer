@@ -8,7 +8,7 @@ Sell: output < -SignalThreshold (default -0.0005)
 import numpy as np
 from typing import Optional, Dict, Tuple
 from datetime import datetime
-from .neural_network import NeuralNetwork
+from .svr_model import SVRModel
 from .data_processor import DataProcessor
 
 
@@ -32,7 +32,7 @@ class SignalGenerator:
         # Signal history
         self.signal_history = {}  # symbol -> list of signals
     
-    def generate_signal(self, network: NeuralNetwork, normalized_input: np.ndarray, 
+    def generate_signal(self, model: SVRModel, normalized_input: np.ndarray, 
                        symbol: str, current_price: float) -> Dict:
         """
         Generate trading signal from neural network output

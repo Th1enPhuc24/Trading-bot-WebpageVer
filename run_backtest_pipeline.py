@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 sys.path.insert(0, str(Path(__file__).parent))
 
 from src.core.data_fetcher import TradingViewDataFetcher
-from src.core.neural_network import NeuralNetwork
+from src.core.svr_model import SVRModel
 from src.core.data_processor import DataProcessor
 from src.core.training_system import TrainingSystem
 from src.core.backtest_system import BacktestEngine
@@ -116,7 +116,7 @@ def main():
         original_training_bars = config['training']['training_bars']
         config['training']['training_bars'] = training_bars
         
-        network = NeuralNetwork(
+        model = SVRModel(
             config=config,
             input_size=config['network']['input_size'],
             output_size=config['network']['output_size']

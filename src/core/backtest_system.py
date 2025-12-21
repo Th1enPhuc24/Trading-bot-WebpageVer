@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime, timedelta
 
-from .neural_network import NeuralNetwork
+from .svr_model import SVRModel
 from .data_processor import DataProcessor
 from .signal_generator import SignalGenerator
 from ..utils.multi_timeframe import MultiTimeframeAnalyzer
@@ -35,7 +35,7 @@ class BacktestEngine:
         
     def run_backtest(
         self, 
-        network: NeuralNetwork,
+        model: SVRModel,
         prices: np.ndarray,
         symbol: str,
         initial_balance: float = 10000.0,

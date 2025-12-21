@@ -15,7 +15,7 @@ from typing import Dict, Optional
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.core.neural_network import NeuralNetwork
+from src.core.svr_model import SVRModel
 from src.core.data_processor import DataProcessor
 from src.core.training_system import TrainingSystem
 from src.core.data_fetcher import TradingViewDataFetcher

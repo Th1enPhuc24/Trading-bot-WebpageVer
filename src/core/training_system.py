@@ -8,7 +8,7 @@ import numpy as np
 from typing import Optional, Dict, List
 from datetime import datetime
 import os
-from .neural_network import NeuralNetwork
+from .svr_model import SVRModel
 from .data_processor import DataProcessor
 
 
@@ -58,13 +58,13 @@ class TrainingSystem:
         
         return False
     
-    def train_network(self, network: NeuralNetwork, prices: np.ndarray, 
+    def train_network(self, network: SVRModel, prices: np.ndarray, 
                      symbol: str, verbose: bool = True) -> Dict:
         """
         Train SVM model on historical data
         
         Args:
-            network: SVM model instance (NeuralNetwork wrapper)
+            network: SVRModel instance
             prices: Historical closing prices (must have >= training_bars)
             symbol: Trading symbol
             verbose: Print training progress
@@ -126,7 +126,7 @@ class TrainingSystem:
         
         return training_stats
     
-    def initialize_network(self, symbol: str, prices: Optional[np.ndarray] = None) -> NeuralNetwork:
+    def initialize_model(self, symbol: str, prices: Optional[np.ndarray] = None) -> SVRModel:
         """
         Initialize SVM model with pre-trained weights or train from scratch
         
@@ -138,7 +138,7 @@ class TrainingSystem:
             Initialized SVM model
         """
         # Create SVM model with config
-        network = NeuralNetwork(
+        model = SVRModel(
             config=self.config,
             input_size=self.config['network']['input_size'],
             output_size=self.config['network']['output_size']
@@ -163,7 +163,7 @@ class TrainingSystem:
         
         return network
     
-    def check_and_retrain(self, network: NeuralNetwork, prices: np.ndarray, 
+    def check_and_retrain(self, model: SVRModel, prices: np.ndarray, 
                          symbol: str, new_bars: int = 1) -> bool:
         """
         Check if retraining is needed and execute if so
