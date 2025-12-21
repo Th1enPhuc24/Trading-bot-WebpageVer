@@ -95,7 +95,7 @@ def main():
         # STEP 3: Train Model
         # ============================================================
         print(f"\n{'='*70}")
-        print(f"🧠 STEP 3: TRAINING SVM MODEL")
+        print(f" STEP 3: TRAINING SVM MODEL")
         print(f"{'='*70}")
         
         # Adjust training_bars to available data
@@ -125,7 +125,7 @@ def main():
         print(f"\nStarting training...")
         start_time = time.time()
         
-        stats = trainer.train_network(network, train_prices, symbol, verbose=True)
+        stats = trainer.train_network(model, train_prices, symbol, verbose=True)
         
         training_time = time.time() - start_time
         
@@ -150,7 +150,7 @@ def main():
         # STEP 4: Backtest on Test Set
         # ============================================================
         print(f"\n{'='*70}")
-        print(f"🧪 STEP 4: BACKTESTING ON TEST SET")
+        print(f" STEP 4: BACKTESTING ON TEST SET")
         print(f"{'='*70}")
         
         backtest = BacktestEngine(config)
@@ -159,7 +159,7 @@ def main():
         print(f"This simulates real trading on unseen data...")
         
         backtest_stats = backtest.run_backtest(
-            network=network,
+            model=model,
             prices=test_prices,
             symbol=symbol,
             initial_balance=initial_balance,

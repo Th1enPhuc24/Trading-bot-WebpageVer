@@ -143,7 +143,7 @@ class BacktestEngine:
             # If no position, check for new signal
             if position is None:
                 # Get prediction
-                output = network.predict(normalized)
+                output = model.predict(normalized)
                 output_value = float(output[0, 0])
                 
                 # Clip output
