@@ -130,14 +130,33 @@ class RSIGapTradingBot:
         self.model.fit(prices, highs, lows)
         self.log("Model fitted successfully", 'success')
         
-        # Get signals using simple RSI-based prediction (same as terminal)
-        # Force htf_trend=1 (UPTREND) to generate LONG signals when RSI < threshold
-        # This matches the terminal behavior exactly
-        signals = self.model.predict(prices, htf_trend=1, highs=highs, lows=lows)
+        # Get signals using MTF strategy with actual HTF trend
+        # LONG: RSI < 45 in UPTREND
+        # SHORT: RSI > 55 in DOWNTREND
+        if htf_df is not None and len(htf_df) > 100:
+            # Use actual HTF trend data
+            htf_prices = htf_df['close'].values
+            htf_timestamps = htf_df.index.tolist()
+            htf_trends = self.model.determine_htf_trend(htf_prices)
+            
+            # Align HTF trends to LTF bars
+            htf_trend_aligned = np.zeros(len(prices))
+            htf_idx = 0
+            for i in range(len(timestamps)):
+                ltf_time = timestamps[i]
+                while htf_idx < len(htf_timestamps) - 1 and htf_timestamps[htf_idx + 1] <= ltf_time:
+                    htf_idx += 1
+                if htf_idx < len(htf_trends):
+                    htf_trend_aligned[i] = htf_trends[htf_idx]
+            
+            signals = self.model.predict_with_htf_array(prices, htf_trend_aligned)
+        else:
+            # Fallback: use LTF EMA trend if no HTF data
+            signals = self.model.predict(prices, htf_trend=None, highs=highs, lows=lows)
         
         # Count how many signals we'll generate
         long_signals = np.sum(signals == 1)
-        short_signals = np.sum(signals == -1)  # Should be 0 with forced UPTREND
+        short_signals = np.sum(signals == -1)
         self.log(f"Generated {long_signals} LONG signals, {short_signals} SHORT signals", 'info')
         
         # Start dashboard (only if not from_web, since dashboard is already running)
