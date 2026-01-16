@@ -1,0 +1,13 @@
+{
+  "strategy": "RSI_GAP_Analysis",
+  "timeframe": "M5",
+  "rsi_threshold": 45,
+  "tp_points": 8,
+  "sl_points": 8,
+  "performance": {
+    "win_rate": 53.03,
+    "total_pnl": 15732.77,
+    "total_trades": 1697,
+    "return_pct": 157.3
+  }
+}

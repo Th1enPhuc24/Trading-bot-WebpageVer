@@ -1,28 +1,27 @@
 {
   "svm": {
     "kernel": "rbf",
-    "C": 10.0,
+    "C": 1.0059715368187572,
     "gamma": "auto",
-    "epsilon": 0.1,
-    "window_size": 3000
-  },
-  "network": {
-    "input_size": 112,
-    "output_size": 1
+    "epsilon": 0.2325228540124839,
+    "window_size": 3000,
+    "auto_tune": true,
+    "n_iter": 15,
+    "cv_splits": 5
   },
   "training": {
     "train_after_bars": 200,
     "training_bars": 3000
   },
   "signal": {
-    "threshold": 0.7
+    "threshold": 0.05
   },
   "risk_management": {
     "risk_percentage": 0.001,
-    "stop_loss_points": 5,
-    "take_profit_points": 10,
-    "max_hold_hours": 1,
-    "typical_hold_hours": 0.25
+    "stop_loss_points": 10,
+    "take_profit_points": 50,
+    "max_hold_hours": 4,
+    "typical_hold_hours": 1
   },
   "trading": {
     "exchange": "COMEX",
@@ -49,5 +48,12 @@
     "enabled": true,
     "check_interval_minutes": 1,
     "max_trades_per_hour": 10
+  },
+  "optimization": {
+    "n_trials": 30,
+    "min_trades": 5,
+    "win_rate_weight": 0.6,
+    "return_weight": 0.2,
+    "profit_factor_weight": 0.2
   }
 }

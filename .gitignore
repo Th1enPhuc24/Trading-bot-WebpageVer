@@ -13,18 +13,17 @@ build/
 .venv/
 venv/
 ENV/
+env/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-*
 
 # Output files (generated at runtime)
-outputs/data/
-outputs/backtests/
-outputs/live/
-outputs/dashboards/
+outputs/
 
 # Temporary files
 *.log
@@ -32,5 +31,8 @@ outputs/dashboards/
 .DS_Store
 Thumbs.db
 
-# Keep model weights tracked
-!models/weights/weights_GC1!.joblib
+# Jupyter
+.ipynb_checkpoints/
+
+# Keep models tracked
+!models/*.joblib

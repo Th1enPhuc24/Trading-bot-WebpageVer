@@ -8,7 +8,7 @@ Sell: output < -SignalThreshold (default -0.0005)
 import numpy as np
 from typing import Optional, Dict, Tuple
 from datetime import datetime
-from .svr_model import SVRModel
+from .svc_model import SVCModel
 from .data_processor import DataProcessor
 
 
@@ -32,7 +32,7 @@ class SignalGenerator:
         # Signal history
         self.signal_history = {}  # symbol -> list of signals
     
-    def generate_signal(self, model: SVRModel, normalized_input: np.ndarray, 
+    def generate_signal(self, model: SVCModel, normalized_input: np.ndarray, 
                        symbol: str, current_price: float) -> Dict:
         """
         Generate trading signal from neural network output
@@ -46,8 +46,8 @@ class SignalGenerator:
         Returns:
             Dictionary with signal information
         """
-        # Forward pass through network
-        output = network.predict(normalized_input)
+        # Forward pass through model
+        output = model.predict(normalized_input)
         output_value = float(output[0, 0])  # Extract scalar value
         
         # Clip output to [-1, 1] for SVM compatibility (SVR output is unbounded unlike tanh)
@@ -69,7 +69,7 @@ class SignalGenerator:
             
             # Don't open new position if one exists
             if signal_type in ['BUY', 'SELL']:
-                print(f"️ Position already exists for {symbol} ({existing_direction}), signal ignored")
+                print(f"Position already exists for {symbol} ({existing_direction}), signal ignored")
                 position_allowed = False
                 signal_type = 'HOLD'
         
@@ -103,7 +103,7 @@ class SignalGenerator:
         price = signal['current_price']
         
         if signal_type == 'BUY':
-            print(f"🟢 {timestamp} | {symbol} | BUY SIGNAL | Output: {output:+.6f} | Price: {price:.2f}")
+            print(f" {timestamp} | {symbol} | BUY SIGNAL | Output: {output:+.6f} | Price: {price:.2f}")
         elif signal_type == 'SELL':
             print(f" {timestamp} | {symbol} | SELL SIGNAL | Output: {output:+.6f} | Price: {price:.2f}")
         else:
@@ -123,7 +123,7 @@ class SignalGenerator:
             take_profit: Take profit price
         """
         if self.one_position_per_symbol and symbol in self.active_positions:
-            print(f"️ Overwriting existing position for {symbol}")
+            print(f"Overwriting existing position for {symbol}")
         
         self.active_positions[symbol] = {
             'direction': direction,
@@ -149,7 +149,7 @@ class SignalGenerator:
             Dictionary with position result or None
         """
         if symbol not in self.active_positions:
-            print(f"️ No active position found for {symbol}")
+            print(f"No active position found for {symbol}")
             return None
         
         position = self.active_positions[symbol]

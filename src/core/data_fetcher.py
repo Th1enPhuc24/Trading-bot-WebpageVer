@@ -29,7 +29,7 @@ class TradingViewDataFetcher:
             print(f" TradingView connection initialized (tvdatafeed-enhanced v2.2.1)")
             print(f"  Using anonymous access - data may be limited")
         except Exception as e:
-            print(f"️ TradingView connection failed: {e}")
+            print(f"TradingView connection failed: {e}")
             self.tv = None
         
         # Cache for storing data
@@ -63,7 +63,7 @@ class TradingViewDataFetcher:
             DataFrame with OHLCV data or None if failed
         """
         if self.tv is None:
-            print(f"️ TradingView not initialized")
+            print(f"TradingView not initialized")
             return None
         
         try:
@@ -84,7 +84,7 @@ class TradingViewDataFetcher:
             )
             
             if df is None or len(df) == 0:
-                print(f"️ No data received for {self.symbol}")
+                print(f"No data received for {self.symbol}")
                 return None
             
             # Ensure data is sorted by date

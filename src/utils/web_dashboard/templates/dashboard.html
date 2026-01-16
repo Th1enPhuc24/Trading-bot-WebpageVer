@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Dashboard - Backtest Replay</title>
+    <link rel="stylesheet" href="/static/dashboard.css">
+    <!-- Socket.IO -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <!-- TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <!-- Chart.js for mini charts (Equity, P&L) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0"></script>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-left">
+                <h1>🤖 Trading Bot Dashboard</h1>
+                <span class="status-indicator" id="status-indicator">
+                    <span class="status-dot"></span>
+                    <span id="status-text">Connecting...</span>
+                </span>
+            </div>
+            <div class="header-right">
+                <div class="balance-display">
+                    <span class="label">Balance</span>
+                    <span class="value" id="current-balance">$10,000.00</span>
+                </div>
+                <div class="pnl-display" id="pnl-display">
+                    <span class="label">Total P&L</span>
+                    <span class="value" id="total-pnl">$0.00</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+            <!-- Training Control Section -->
+            <section class="training-section glass-panel">
+                <div class="section-header">
+                    <h2>Training Process</h2>
+                    <div class="training-controls">
+                        <button id="start-train-btn" class="train-btn">Start Train/Test</button>
+                        <button id="save-results-btn" class="save-btn" style="display: none;">Save Results</button>
+                        <span class="train-status" id="train-status">Ready</span>
+                    </div>
+                </div>
+                <div class="training-log-container" id="training-log">
+                    <div class="log-placeholder">Click "Start Train/Test" to begin training and backtesting...</div>
+                </div>
+            </section>
+
+            <!-- Price Chart Section -->
+            <section class="chart-section">
+                <div class="section-header">
+                    <h2>📈 Price Chart (Candlestick)</h2>
+                    <div class="chart-info">
+                        <span id="current-price">--</span>
+                        <span id="price-change" class="neutral">--</span>
+                        <button class="zoom-btn" id="zoom-reset-btn" title="Reset Zoom">🔄 Reset Zoom</button>
+                    </div>
+                </div>
+
+                <!-- Playback Controls (for backtest replay) -->
+                <div class="playback-controls" id="playback-controls" style="display: none;">
+                    <div class="playback-bar">
+                        <!-- Navigation Buttons -->
+                        <button class="nav-btn" id="backward-btn" title="Backward 5 min">⏪</button>
+                        <button class="playback-btn" id="play-pause-btn" title="Play/Pause">
+                            <span id="play-icon">▶️</span>
+                        </button>
+                        <button class="nav-btn" id="forward-btn" title="Forward 5 min">⏩</button>
+
+                        <!-- Scrubber Bar -->
+                        <div class="scrubber-container">
+                            <input type="range" id="scrubber" class="scrubber" min="0" max="100" value="0">
+                            <span class="scrubber-time" id="scrubber-time">00:00</span>
+                        </div>
+
+                        <!-- Speed Selector -->
+                        <div class="speed-selector">
+                            <label>Speed:</label>
+                            <select id="speed-select">
+                                <option value="1">x1</option>
+                                <option value="2">x2</option>
+                                <option value="5" selected>x5</option>
+                                <option value="10">x10</option>
+                                <option value="20">x20</option>
+                                <option value="50">x50</option>
+                            </select>
+                        </div>
+                        <span class="replay-status" id="replay-status">Ready</span>
+                    </div>
+                </div>
+
+                <div class="chart-container" id="price-chart-container">
+                    <!-- TradingView Lightweight Chart will be rendered here -->
+                    <div id="tradingview-chart"></div>
+                    <!-- Custom Tooltip -->
+                    <div id="chart-tooltip" class="chart-tooltip" style="display: none;"></div>
+                </div>
+            </section>
+
+            <!-- Equity & P&L Charts Row -->
+            <div class="charts-row">
+                <section class="mini-chart-section glass-panel">
+                    <div class="section-header">
+                        <h2>💰 Equity Curve & Drawdown</h2>
+                    </div>
+                    <div class="mini-chart-container">
+                        <canvas id="equityChart"></canvas>
+                    </div>
+                </section>
+
+                <section class="mini-chart-section glass-panel">
+                    <div class="section-header">
+                        <h2>📊 Cumulative P&L</h2>
+                    </div>
+                    <div class="mini-chart-container">
+                        <canvas id="pnlChart"></canvas>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Info Panels Row -->
+            <div class="info-row">
+                <!-- Current Position Panel -->
+                <section class="position-panel glass-panel">
+                    <div class="section-header">
+                        <h2>📊 Current Position</h2>
+                        <span id="position-status" class="position-badge no-position">No Position</span>
+                    </div>
+                    <div class="position-content" id="position-content">
+                        <div class="no-position-message">
+                            <span class="icon">💤</span>
+                            <p>Waiting for trading signal...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Statistics Panel -->
+                <section class="stats-panel glass-panel">
+                    <div class="section-header">
+                        <h2>📉 Statistics</h2>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-label">Total Trades</span>
+                            <span class="stat-value" id="stat-total-trades">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Long (Buy)</span>
+                            <span class="stat-value" id="stat-long-trades">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Short (Sell)</span>
+                            <span class="stat-value" id="stat-short-trades">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Win Rate</span>
+                            <span class="stat-value" id="stat-win-rate">0.00%</span>
+                        </div>
+                        <div class="stat-item win">
+                            <span class="stat-label">Winning</span>
+                            <span class="stat-value" id="stat-winning">0</span>
+                        </div>
+                        <div class="stat-item loss">
+                            <span class="stat-label">Losing</span>
+                            <span class="stat-value" id="stat-losing">0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Reward</span>
+                            <span class="stat-value" id="stat-reward">$0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Reward %</span>
+                            <span class="stat-value" id="stat-reward-pct">0.00%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Max Drawdown</span>
+                            <span class="stat-value" id="stat-max-dd">0.00%</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Sharpe Ratio</span>
+                            <span class="stat-value" id="stat-sharpe">0.00</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Starting Balance</span>
+                            <span class="stat-value" id="stat-starting">$10,000</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Current Balance</span>
+                            <span class="stat-value" id="stat-current-balance">$10,000</span>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Trade History Section -->
+            <section class="trades-section glass-panel">
+                <div class="section-header">
+                    <h2>📜 Trade History</h2>
+                    <div class="trade-header-right">
+                        <span class="trade-count" id="trade-count">0 trades</span>
+                        <button class="download-btn" id="download-csv-btn" title="Download CSV">
+                            📥 Download CSV
+                        </button>
+                    </div>
+                </div>
+                <div class="trades-table-container">
+                    <table class="trades-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Entry Time</th>
+                                <th>Exit Time</th>
+                                <th>Type</th>
+                                <th>Entry</th>
+                                <th>Exit</th>
+                                <th>P&L</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-tbody">
+                            <tr class="empty-row">
+                                <td colspan="8">No trades yet</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="dashboard-footer">
+            <span>Real-time Trading Dashboard v2.0</span>
+            <span id="last-update">Last update: --</span>
+        </footer>
+    </div>
+
+    <script src="/static/dashboard.js"></script>
+</body>
+
+</html>

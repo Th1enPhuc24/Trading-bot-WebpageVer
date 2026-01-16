@@ -74,7 +74,7 @@ class RiskManager:
             Calculated lot size
         """
         if symbol not in self.symbol_specs:
-            print(f"⚠️ Symbol {symbol} not in specs, using GC1! defaults")
+            print(f"Symbol {symbol} not in specs, using GC1! defaults")
             symbol = 'GC1!'
         
         specs = self.symbol_specs[symbol]
@@ -87,7 +87,7 @@ class RiskManager:
         
         # Avoid division by zero
         if sl_distance < 1e-10:
-            print(f"⚠️ SL distance too small, using minimum lot")
+            print(f"SL distance too small, using minimum lot")
             return specs['min_lot']
         
         # Calculate lot size
@@ -115,7 +115,7 @@ class RiskManager:
             Calculated lot size
         """
         if symbol not in self.symbol_specs:
-            print(f"⚠️ Symbol {symbol} not in specs, using GC1! defaults")
+            print(f"Symbol {symbol} not in specs, using GC1! defaults")
             symbol = 'GC1!'
         
         specs = self.symbol_specs[symbol]
@@ -248,11 +248,11 @@ class RiskManager:
         specs = self.symbol_specs[symbol]
         
         if lot_size < specs['min_lot']:
-            print(f"❌ Lot size {lot_size} below minimum {specs['min_lot']}")
+            print(f"Lot size {lot_size} below minimum {specs['min_lot']}")
             return False
         
         if lot_size > specs['max_lot']:
-            print(f"❌ Lot size {lot_size} above maximum {specs['max_lot']}")
+            print(f"Lot size {lot_size} above maximum {specs['max_lot']}")
             return False
         
         # Check SL/TP distances
@@ -261,11 +261,11 @@ class RiskManager:
         tp = position_info['take_profit']
         
         if abs(entry - sl) < 1e-10:
-            print(f"❌ Stop loss too close to entry")
+            print(f"Stop loss too close to entry")
             return False
         
         if abs(entry - tp) < 1e-10:
-            print(f"❌ Take profit too close to entry")
+            print(f"Take profit too close to entry")
             return False
         
         return True

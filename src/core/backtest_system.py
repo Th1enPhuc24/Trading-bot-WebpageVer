@@ -8,7 +8,7 @@ import pandas as pd
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime, timedelta
 
-from .svr_model import SVRModel
+from .svc_model import SVCModel
 from .data_processor import DataProcessor
 from .signal_generator import SignalGenerator
 from ..utils.multi_timeframe import MultiTimeframeAnalyzer
@@ -35,18 +35,31 @@ class BacktestEngine:
         
     def run_backtest(
         self, 
-        model: SVRModel,
-        prices: np.ndarray,
+        model: SVCModel,
+        ohlc_data: pd.DataFrame,  # Changed from prices: np.ndarray to accept OHLC
         symbol: str,
         initial_balance: float = 10000.0,
         verbose: bool = True
     ) -> Dict:
         """
-        Run backtest on historical data
+        Run backtest on historical data using OHLC for realistic TP/SL checking
         """
+        # Extract price arrays from OHLC data
+        if isinstance(ohlc_data, pd.DataFrame):
+            prices = ohlc_data['close'].values
+            highs = ohlc_data['high'].values
+            lows = ohlc_data['low'].values
+            opens = ohlc_data['open'].values
+        else:
+            # Fallback for backward compatibility if numpy array passed
+            prices = ohlc_data
+            highs = prices
+            lows = prices
+            opens = prices
+        
         if verbose:
             print(f"\n{'='*70}")
-            print(f"🧪 BACKTESTING ON HISTORICAL DATA")
+            print(f" BACKTESTING ON HISTORICAL DATA")
             print(f"{'='*70}")
             print(f"Symbol: {symbol}")
             print(f"Data points: {len(prices)}")
@@ -61,14 +74,27 @@ class BacktestEngine:
         signals_history = []
         
         input_size = self.config['network']['input_size']
-        max_hold_bars = self.config['risk_management']['max_hold_hours']
         threshold = self.config['signal']['threshold']
+        
+        # Convert max_hold_hours to bars based on timeframe
+        timeframe_minutes = 5  # Default M5
+        if 'trading' in self.config:
+            tf = self.config['trading'].get('primary_timeframe', '5')
+            timeframe_minutes = int(tf) if tf.isdigit() else 5
+        
+        max_hold_hours = self.config['risk_management'].get('max_hold_hours', 1)
+        max_hold_bars = int(max_hold_hours * 60 / timeframe_minutes)
+        
+        if verbose:
+            print(f"Max hold: {max_hold_hours} hours = {max_hold_bars} bars")
         
         # Start backtesting - need extra bars for indicators
         start_bar = input_size + 50
         
         for i in range(start_bar, len(prices)):
             current_price = prices[i]
+            current_high = highs[i]
+            current_low = lows[i]
             
             # Get all prices up to current point and create proper input
             price_history = prices[:i+1]
@@ -89,23 +115,25 @@ class BacktestEngine:
                 close_price = current_price
                 close_reason = None
                 
+                # Check TP/SL using High/Low for realistic simulation
                 if pos_type == 'BUY':
                     # BUY position: SL is below entry, TP is above entry
-                    if current_price <= stop_loss:
+                    # Check if low touched SL or high touched TP
+                    if current_low <= stop_loss:
                         should_close = True
                         close_price = stop_loss
                         close_reason = 'STOP_LOSS'
-                    elif current_price >= take_profit:
+                    elif current_high >= take_profit:
                         should_close = True
                         close_price = take_profit
                         close_reason = 'TAKE_PROFIT'
                 else:  # SELL
                     # SELL position: SL is above entry, TP is below entry
-                    if current_price >= stop_loss:
+                    if current_high >= stop_loss:
                         should_close = True
                         close_price = stop_loss
                         close_reason = 'STOP_LOSS'
-                    elif current_price <= take_profit:
+                    elif current_low <= take_profit:
                         should_close = True
                         close_price = take_profit
                         close_reason = 'TAKE_PROFIT'
@@ -365,3 +393,62 @@ class BacktestEngine:
             'bar': range(len(self.equity_curve)),
             'equity': self.equity_curve
         })
+    
+    def save_trades_to_csv(self, filepath: str = None, symbol: str = "", timeframe_minutes: int = 5, model_type: str = "svr"):
+        """
+        Save all trades to CSV file with timestamps
+        
+        Args:
+            filepath: Path to save CSV (default: outputs/<model_type>/trades/trades_<symbol>_<timestamp>.csv)
+            symbol: Trading symbol for filename
+            timeframe_minutes: Timeframe in minutes for calculating timestamps
+            model_type: Model type for directory separation ('svr' or 'lstm')
+        """
+        import os
+        from datetime import datetime, timedelta
+        
+        if not self.trades:
+            print("No trades to save")
+            return None
+        
+        # Calculate base time (approximate start of backtest)
+        now = datetime.now()
+        total_bars = max(t.get('exit_bar', 0) for t in self.trades) if self.trades else 0
+        base_time = now - timedelta(minutes=total_bars * timeframe_minutes)
+        
+        # Create DataFrame with required columns including timestamps
+        trades_data = []
+        for trade in self.trades:
+            entry_bar = trade.get('entry_bar', trade.get('entry_time', 0))
+            exit_bar = trade.get('exit_bar', trade.get('exit_time', 0))
+            
+            entry_time = base_time + timedelta(minutes=entry_bar * timeframe_minutes)
+            exit_time = base_time + timedelta(minutes=exit_bar * timeframe_minutes)
+            
+            trades_data.append({
+                'Entry_Time': entry_time.strftime('%Y-%m-%d %H:%M'),
+                'Exit_Time': exit_time.strftime('%Y-%m-%d %H:%M'),
+                'Type': trade['type'],
+                'Entry': trade['entry_price'],
+                'Exit': trade['exit_price'],
+                'P&L': round(trade['pnl'], 2),
+                'Reason': trade['reason']
+            })
+        
+        df = pd.DataFrame(trades_data)
+        
+        # Generate filepath if not provided
+        if filepath is None:
+            output_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'outputs', model_type, 'trades')
+            os.makedirs(output_dir, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filepath = os.path.join(output_dir, f'trades_{symbol}_{timestamp}.csv')
+        else:
+            os.makedirs(os.path.dirname(filepath) if os.path.dirname(filepath) else '.', exist_ok=True)
+        
+        # Save to CSV
+        df.to_csv(filepath, index=False)
+        print(f"Trades saved to: {filepath}")
+        
+        return filepath
+

@@ -86,7 +86,7 @@ class TradingFilters:
             True if volume sufficient, False otherwise
         """
         if volume < self.volume_threshold:
-            print(f"⚠️ Volume filter: {volume:.0f} below threshold {self.volume_threshold}")
+            print(f"Volume filter: {volume:.0f} below threshold {self.volume_threshold}")
             return False
         return True
     
